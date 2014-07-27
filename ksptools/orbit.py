@@ -1,7 +1,8 @@
-
-from numpy import arccos, arcsin, arctan, arctan2, array, cross, cos, dot, sin, sqrt
+from numpy import arccos, arcsin, arctan, arctan2, array, cross, cos, dot, sin, sqrt, tan
 from numpy.linalg import norm
 from scipy.optimize import newton
+
+from . import unit
 
 def project(a,b):
     return (dot(a,b)/dot(b,b))*b
@@ -32,8 +33,8 @@ class KeplerOrbit(object):
         return cls(body, p, e, i, lon_asc, arg_pe, M, epoch)
     
     @classmethod
-    def from_rvbody(cls, r, v, body, epoch):
-        p,e,t,inc,lon_asc,arg_pe = KeplerOrbit._from_rvu(r,v,body.std_g_param)
+    def from_rvbody(cls, r, v, body, epoch, u2=0):
+        p,e,t,inc,lon_asc,arg_pe = KeplerOrbit._from_rvu(r,v,body.std_g_param + u2)
         return cls(body, p, e, inc, lon_asc, arg_pe, t, epoch)
 
     @staticmethod
@@ -61,17 +62,40 @@ class KeplerOrbit(object):
 
         return p,e,M,inc,lon_asc,arg_pe
 
-    def to_rvbody(self, t):
-        dt = t - self.epoch
-        M = self.mean_anom + (self.mean_motion * t)
-        f = lambda nE: nE - e*np.sin(nE) - M - n*t
-        E = newton(f,0)
-        u = self.body.std_g_param
+    def rv(self, t, u2=0):
+        u = self.body.std_g_param + u2
         a = self.a
         p = self.p
         e = self.e
-        theta = arctan(sqrt(((1+e)*tan(E/2)**2)/(1-e)))/2
+        
+        theta = self.theta(t)
+        x,y,z = self.xyz()
+        
         len_r = (a*(1-e**2))/(1+e*cos(theta))
+        unit_r = cos(theta)*x + sin(theta)*y
+        unit_t = cos(theta)*y - sin(theta)*x
+        r = len_r*unit_r
+        vel = sqrt(u*(2/len_r-1/a))
+        vt = (sqrt(u*p)/len_r)*unit_t
+        vr = (vel-norm(vt))*unit_r
+        return r, vt + vr
+    
+    def E(self, t):
+        dt = t - self.epoch
+        M = self.mean_anom + (self.mean_motion * dt)
+        e = self.e
+        n = self.mean_motion
+        f = lambda nE: nE - e*sin(nE) - M
+        fp = lambda nE: 1 - e*cos(nE)
+        fp2 = lambda nE: e*sin(nE)
+        return newton(f,0,fp,fprime2=fp2)
+    
+    def theta(self, t):
+        E = self.E(t)
+        e = self.e
+        return 2*arctan(sqrt((1+e)/(1-e))*tan(E/2))
+    
+    def xyz(self):
         O, i, w = self.lon_asc, self.inc, self.arg_pe
         x = array([
                 cos(O)*cos(w) - sin(O)*cos(i)*sin(w),
@@ -85,11 +109,19 @@ class KeplerOrbit(object):
                 sin(i)*sin(O),
                 -sin(i)*cos(O),
                 cos(i)])
-        unit_r = cos(theta)*x + sin(theta)*y
-        unit_t = cos(theta)*y - sin(theta)*x
-        r = len_r*unit_r
-        vel = sqrt(u*(2/len_r-1/a))
-        vt = (sqrt(u*p)/len_r)*unit_t
-        vr = (vel-norm(vt))*unit_r
-        return r, vt + vr, body
-
+        return x,y,z
+        
+    @classmethod
+    def from_config(cls, conf_parser, section, body):
+        a = conf_parser.getfloat(section, 'a')
+        e = conf_parser.getfloat(section, 'e')
+        i = unit.tounit(conf_parser.get(section, 'i'), 'rad')
+        arg_pe = unit.tounit(conf_parser.get(section, 'arg_pe'), 'rad')
+        lon_asc = unit.tounit(conf_parser.get(section, 'lon_asc'), 'rad')
+        M = unit.tounit(conf_parser.get(section, 'mean_anom'), 'rad')
+        if conf_parser.has_option(section, 'epoch'):
+            epoch = conf_parser.getfloat(section, 'epoch')
+        else:
+            epoch = 0.0
+        return cls.from_planet_paremters(body, a, e, i, arg_pe, lon_asc, M, epoch)
+        
