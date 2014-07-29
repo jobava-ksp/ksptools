@@ -3,34 +3,35 @@ from numpy.linalg import norm
 from scipy.optimize import newton
 
 from . import unit
+from . import util
 
-def project(a,b):
-    return (dot(a,b)/dot(b,b))*b
+#def project(a,b):
+#    return (dot(a,b)/dot(b,b))*b
 
-def reject(a,b):
-    return a - (dot(a,b)/dot(b,b))*b
+#def reject(a,b):
+#    return a - (dot(a,b)/dot(b,b))*b
 
-def rotx(t):
-    return mat([[1,       0,      0],
-                [0,  cos(t), sin(t)],
-                [0, -sin(t), cos(t)]])
+#def rotx(t):
+#    return mat([[1,       0,      0],
+#                [0,  cos(t), sin(t)],
+#                [0, -sin(t), cos(t)]])
 
-def roty(t):
-    return mat([[cos(t), 0, -sin(t)],
-                [0,      1,       0],
-                [sin(t), 0,  cos(t)]])
+#def roty(t):
+#    return mat([[cos(t), 0, -sin(t)],
+#                [0,      1,       0],
+#                [sin(t), 0,  cos(t)]])
 
-def rotz(t):
-    return mat([[cos(t), -sin(t), 0],
-                [sin(t),  cos(t), 0],
-                [     0,       0, 1]])
+#def rotz(t):
+#    return mat([[cos(t), -sin(t), 0],
+#                [sin(t),  cos(t), 0],
+#                [     0,       0, 1]])
                 
 
 class EulerAngle(object):    
     def __init__(self, p, t, s):
-        Ap = rotz(p)  
-        At = rotx(t)
-        As = rotz(s)
+        Ap = util.rotz(p)  
+        At = util.rotx(t)
+        As = util.rotz(s)
         
         self.phi, self.theta, self.psi = p, t, s
         self.Ap, self.At, self.As = Ap, At, As
@@ -41,7 +42,8 @@ class EulerAngle(object):
         return cls(p,t,s)
     
     def rotate(self, r):
-        return (self.A*(mat(r).T)).A1
+        return util.Ax(self.A,r)
+
 
 class KeplerOrbit(object):
     def __init__(self, body, a, e, inc, lon_asc, arg_pe, M, epoch):
@@ -68,8 +70,8 @@ class KeplerOrbit(object):
 
     @staticmethod
     def _from_rvu(r, v, u):
-        vr = project(v,r)
-        vt = reject(v,r)
+        vr = util.project(v,r)
+        vt = util.reject(v,r)
         p = (norm(r)*norm(vt))**2/u
         e = sqrt(1 + 2*(norm(v)**2/2 - u/norm(r))*(norm(cross(r,v)))**2/u**2)
         if e == 0.0:
