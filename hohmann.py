@@ -1,28 +1,30 @@
-import ksptools
-import ksptools.orbit as orbit
-import ksptools.util as util
+#import ksptools
+#import ksptools.orbit as orbit
+#import ksptools.util as util
 
-def hohmann_simple(r1, r2, t1, t2):
-    from numpy import cross, arccos, cos, pi
+def hohmann_simple(r1, r2):
+    from ksptools.util import arcvec, veccos
     from numpy.linalg import norm
-    from scipy.integrate import romberg
-    from ksptools.util import unit, reject, projmat, Ax
     
-    rx = unit(r1)
-    ry = unit(reject(r2,r1))
-    rx = cross(rx,ry)
-    plane = projmat(rx, ry, rz)
+    dtheta = arcvec(r1, r2)
     cost = veccos(r1,r2)
-    sint = vecsin(r1,r2)
+    r1_len = norm(r1)
+    r2_len = norm(r2)
     
-    if sint >= 0:
-        theta = arccos(cost)
-    else:
-        theta = 2*pi - arccos(cost)
+    print("dtheta: {}".format(dtheta))
+    print("r1: {}".format(r1_len))
+    print("r2: {}".format(r2_len))
+    print("veccos: {}".format(cost))
     
-    def area_func(e,a,v):
-        def r(t):
-            return (a*(1-e**2))/(1+e*cos(t))
-        return romberg(r,v,v+dtheta)
+    rat = r1_len/r2_len
     
+    if r1_len > r2_len:
+        e = (rat-1)/(cost+rat)
+        a = r1_len*(1-e)/(1-e**2)
+    elif r1_len < r2_len:
+        e = (rat-1)/(cost-rat)
+        a = r1_len*(1+e)/(1-e**2)
+    return e, a
+    
+def hohmann_
     
