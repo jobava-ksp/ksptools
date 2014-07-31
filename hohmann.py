@@ -44,7 +44,7 @@ def hohmann(r1, r2, v1, v2, dt, u):
         #    assert(False)
         
         # -- full equation -- ##
-        return Mofet(e,v+dtheta) - Mofet(e,v) - nofretu(r2_len, e, v+dtheta, u)*dt
+        return (Mofet(e,v+dtheta) - (Mofet(e,v) - nofretu(r2_len, e, v+dtheta, u)*dt))**2
         # -- mean motion equation -- ##
         '''return nofretu(r1_len, e, v, u) - nofretu(r2_len, e, v+dtheta, u)'''
     
@@ -79,12 +79,13 @@ def hohmann(r1, r2, v1, v2, dt, u):
         t0 = 0.0
     
     #return f, fp, fmin_tnc(func, [e0, t0], dfunc, bounds=((0.00001, None),(0.,2*pi-0.00001)), disp=5)
-    return f, fp, minimize(func, [e0, t0], method='TNC', jac=dfunc, bounds=((0.,1.0-1.0e-8),(0.,2.*pi)), options={'disp':5})
+    #return f, fp, minimize(func, [e0, t0], method='TNC', jac=dfunc, bounds=((0.,1.0-1.0e-8),(0.,2.*pi)), options={'disp':5})
+    return f, fp, minimize(func, [e0, t0], method='TNC', bounds=((0.,1.0-1.0e-8),(0.,2.*pi)))
     
     #return minimize(func, [0.1, 0.], jac=dfunc, bounds=((0.,None),(0., 2*pi)))
 
 
-def plot_ev(f,df,xlow=0.,xhigh=1.,ylow=None,yhigh=None):
+def plot_bestfit(f,df,xlow=0.,xhigh=1.,ylow=None,yhigh=None):
     from numpy import array, linspace, pi, meshgrid, empty
     from scipy.optimize import minimize
     import matplotlib.pyplot as plt
@@ -122,12 +123,38 @@ def plot_ev(f,df,xlow=0.,xhigh=1.,ylow=None,yhigh=None):
     ax2.contour(vin,ein,dfvz)
     plt.show()
 
+def plot_ev(f, elow=0., ehigh=1., vlow=0., vhigh=None, res=100, fig=None, subid=None):
+    from numpy import array, linspace, pi, meshgrid, empty, mat
+    from scipy.optimize import minimize
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    
+    if vhigh is None:
+        vhigh = 2*pi
+    ein = linspace(elow, ehigh, 100)
+    vin = linspace(vlow, vhigh, 100)
+    fz = array([f(e,v) for v in vin for e in ein])
+    fz = mat(fz.reshape([res,res])).T.A
+    
+    if fig is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+    else:
+        ax = fig.add_subplot(subid)
+    ax.imshow(fz, aspect='auto', origin='lower', extent=(vlow, vhigh, elow, ehigh))
+    ax.contour(vin, ein, fz)
+
 def test(r1,r2,v1,v2,dt,u):
     from numpy import pi
     f, df, mn = hohmann(r1,r2,v1,v2,dt,u)
-    plot_ev(f,df,0.,1.,0.,2*pi)
+    plot_bestfit(f,df,0.,1.,0.,2*pi)
     return f, df, mn
-    
+
+import matplotlib.pyplot as plt
+import ksptools
+import ksptools.util as kspu
+sys = ksptools.loadsystem('KerbolSystem.cfg')
+
 if __name__ == '__main__':
     from numpy import array
     import ksptools.util

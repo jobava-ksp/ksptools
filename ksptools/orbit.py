@@ -1,8 +1,3 @@
-from numpy import arccos, arcsin, arctan, arctan2, array, cross, cos, dot, mat, sin, sqrt, tan
-from numpy.linalg import norm
-from scipy.optimize import newton
-
-from . import unit
 from . import util
 
 #TODO: move euler angle
@@ -27,12 +22,14 @@ class EulerAngle(object):
 
 class KeplerOrbit(object):
     def __init__(self, u, a, e, inc, lon_asc, arg_pe, M, epoch):
+        from numpy import sqrt, pi
         self.u = u
         self.e = e
+        self.p = a*(1-e**2)
         self.a = a
         self.orient = EulerAngle.from_pts(lon_asc, inc, arg_pe)
         self.mean_motion = sqrt(u/self.a**3)
-        self.mean_anom = (M - sqrt(u/a**3)*epoch) % pi
+        self.mean_anom = (M - self.mean_motion*epoch) % pi
      
     @classmethod
     def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch):
@@ -45,6 +42,8 @@ class KeplerOrbit(object):
 
     @staticmethod
     def from_rvu(r, v, u, epoch=0.):
+        from numpy import arccos, arctan, arctan2, cross, cos, sin, sqrt
+        from numpy.linalg import norm
         vr = util.project(v,r)
         vt = util.reject(v,r)
         p = (norm(r)*norm(vt))**2/u
@@ -69,6 +68,8 @@ class KeplerOrbit(object):
         return cls(u, p, e, inc, lon_asc, arg_pe, M, epoch)
 
     def E_anom(self, dt):
+        from numpy import cos, sin
+        from scipy.optimize import newton
         M = self.mean_anom + (self.mean_motion * dt)
         e = self.e
         n = self.mean_motion
@@ -78,53 +79,72 @@ class KeplerOrbit(object):
         return newton(f,0,fp,fprime2=fp2)
     
     def true_anom(self, t):
+        from numpy import arctan, tan, sqrt
         E = self.E_anom(t)
         e = self.e
-        return 2*arctan(sqrt((1+e)/(1-e))*tan(E/2))
+        return 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
     
-    def flight_angle(self, t):
+    def flight_angle(self, t, theta=None):
         from .util import cossin
+        from numpy import arctan2
         e = self.e
-        theta = self.true_anom(t)
+        if theta is None:
+            theta = self.true_anom(t)
         ect, est, _ = e*cossin(t)
         return arctan2(1+ect, est)
     
-    def prograde(self, t):
+    def prograde(self, t, theta=None):
         from .util import cossin, Ax, rotz
+        from numpy import arctan2, array
         e = self.e
-        theta = self.true_anom(t)
+        if theta is None:
+            theta = self.true_anom(t)
         ct, st, _ = cossin(theta)
-        gamma = arctan2(1+e*ct,e*st)
-        pgd = Ax(rotz(gamma + theta, array([-st, ct, 0])))
+        pgd = Ax(rotz(self.flight_angle(t, theta)), array([-st, ct, 0.]))
         return self.orient.rotate(pgd)
     
-    def radialin(self, t):
-        from .util import cossin
-        theta = self.true_anom(t)
-        return -self.orient.rotate(cossin(theta))
+    def radialin(self, t, theta=None):
+        from .util import cossin, Ax, rotz
+        from numpy import arctan2, array
+        e = self.e
+        if theta is None:
+            theta = self.true_anom(t)
+        ct, st, _ = cossin(theta)
+        rad = Ax(rotz(self.flight_angle(t, theta)), array([-1., 0., 0.]))
+        return self.orient.rotate(rad)
     
     def normal(self, t):
+        from numpy import array
         return self.orient.rotate(array([0.,0.,1.]))
     
-    def r(self, t):
+    def r(self, t, theta=None):
         from .util import cossin
-        p = self.p
-        e = self.e
-        theta = self.true_anom(t)
+        from numpy import cos
+        p,e = self.p, self.e
+        if theta is None:
+            theta = self.true_anom(t)
         l = p/(1+e*cos(theta))
         return self.orient.rotate(cossin(theta))*l
     
-    def v(self, t):
-        p = self.p
-        e = self.e
-        a = self.a
-        u = self.u
+    def v(self, t, theta=None):
+        from .util import cossin, Ax, rotz
+        from numpy import array, arctan2, sqrt
+        p,e,a,u = self.p, self.e, self.a, self.u
+        if theta is None:
+            theta = self.true_anom(t)
+        ct, st, _ = cossin(theta)
         l = p/(1+e*ct)
         vel = sqrt(u*(2./l-1./a))
-        return vel*self.prograde(t)
+        return vel*self.prograde(self, t, theta)
+    
+    def rv(self, t, theta=None):
+        if theta is None:
+            theta = self.true_anom(t)
+        return self.r(t, theta), self.v(t, theta)
         
     @classmethod
     def from_config(cls, conf_parser, section, u):
+        from . import unit
         a = conf_parser.getfloat(section, 'a')
         e = conf_parser.getfloat(section, 'e')
         i = unit.tounit(conf_parser.get(section, 'i'), 'rad')

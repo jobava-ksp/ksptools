@@ -18,6 +18,14 @@ def rotz(t):
                 [sin(t),  cos(t), 0],
                 [     0,       0, 1]])
 
+def rotvec(u,t):
+    from numpy import mat, sin, cos
+    x,y,z = u
+    ct, st, _ = cossin(t)
+    return mat([[ct+x*x*(1-ct),   x*y*(1-ct)-z*st, x*z*(1-ct)+y*st],
+                [y*x*(1-ct)+z*st, ct+y*y*(1-ct),   y*z*(1-ct)-x*st],
+                [z*x*(1-ct)-y*st, z*y*(1-ct)+x*st, ct+z*z*(1-ct)  ]])
+
 def cossin(t, dim=3):
     from numpy import array, sin, cos
     return array([cos(t), sin(t)] + [0]*(dim-2))
