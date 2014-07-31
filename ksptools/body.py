@@ -15,6 +15,9 @@ class State(object):
     
     def asvectors(self):
         raise NotImplementedError
+    
+    def rv(self, t):
+        raise NotImplementedError
 
 
 class OrbitalState(State):
@@ -28,6 +31,9 @@ class OrbitalState(State):
     def asvectors(self):
         r, v = self.kepler.rv(self.epoch)
         return VectorState(self.refbody, r, v, self.body, self.epoch)
+    
+    def rv(self, t):
+        return self.kepler.rv(t)
 
 
 class VectorState(State):
@@ -42,6 +48,15 @@ class VectorState(State):
                 self.position,
                 self.refbody.std_g_param)
         return OrbitalState(self.refbody, kep, self.body, self.epoch)
+
+    def asvectors(self):
+        return self
+    
+    def rv(self, t):
+        from numpy import isclose
+        dt = t - epoch
+        if all(isclose([dt],[0.0])):
+            return self.position, self.velocity
 
 
 class FixedState(State):
@@ -131,6 +146,7 @@ class System(object):
         for b in bodies:
             if b.state.refbody is None:
                 self.centers.add(b)
+            b.system = self
     
     def __getitem__(self, key):
         return self.bodies[key]

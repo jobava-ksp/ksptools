@@ -1,187 +1,142 @@
 from __future__ import print_function
 
-#import ksptools
-#import ksptools.orbit as orbit
-#import ksptools.util as util
+import collections
+HohmannParams = collections.namedtuple('HohmannParams', ['tof','cosdt','sindt','r1','r2','k','l','m','u'])
+del collections
 
-def hohmann_simple(r1, r2):
-    from ksptools.util import arcvec, veccos
+def getparameters(r1vec, r2vec, tof, u):
+    from ksptools.util import veccos, vecsin
+    from numpy import sqrt
     from numpy.linalg import norm
+    from collections import namedtuple
     
-    dtheta = arcvec(r1,r2)
-    cost = veccos(r1,r2)
-    r1_len = norm(r1)
-    r2_len = norm(r2)
-    rat = r1_len/r2_len
+    cosdt = veccos(r1vec, r2vec)
+    sindt = vecsin(r1vec, r2vec)
+    r1, r2 = norm(r1vec), norm(r2vec)
+    k = r1*r2*(1-cosdt)
+    l = r1 + r2
+    m = r1*r2*(1+cosdt)
     
-    if r1_len > r2_len:
-        e = (rat-1)/(cost+rat)
-        a = r1_len*(1-e)/(1-e**2)
-    elif r1_len < r2_len:
-        e = (rat-1)/(cost-rat)
-        a = r1_len*(1+e)/(1-e**2)
-    return e, a
-    
-def hohmann(r1, r2, v1, v2, dt, u):
-    import numpy as np
-    from ksptools.util import arcvec, veccos, Mofet, Eofet, nofretu, dMofet, dnofretu
-    from numpy import pi, array
-    from numpy.linalg import norm
-    from scipy.optimize import minimize, fmin_tnc
-    dtheta = arcvec(r1,r2)
-    #print(dtheta)
-    assert(dtheta > 0)
-    #cosdtheta = veccos(r1,r2)
-    r1_len = norm(r1)
-    r2_len = norm(r2)
-    
-    def f(e,v):
-        #if Mofet(e,v+dtheta) - Mofet(e,v) < 0.0:
-        #    print("e,v,dtheta,dt: {},{},{},{}".format(e,v,dtheta,dt))
-        #    print("Mv,Mv+t: {},{}".format(Mofet(e,v), Mofet(e,v+dtheta)))
-        #    print("Ev,Ev+t: {},{}".format(Eofet(e,v), Eofet(e,v+dtheta)))
-        #    print("nt: {}".format(nofretu(r1_len, e, v, u)*dt))
-        #    assert(False)
-        
-        # -- full equation -- ##
-        return (Mofet(e,v+dtheta) - (Mofet(e,v) - nofretu(r2_len, e, v+dtheta, u)*dt))**2
-        # -- mean motion equation -- ##
-        '''return nofretu(r1_len, e, v, u) - nofretu(r2_len, e, v+dtheta, u)'''
-    
-    def fp(e,v):
-        dM1e, dM1t = dMofet(e,v)
-        dM2e, dM2t = dMofet(e,v+dtheta)
-        _, dn1e, dn1t, _ = dnofretu(r1_len, e, v, u)
-        _, dn2e, dn2t, _ = dnofretu(r2_len, e, v+dtheta, u)
-        
-        val = Mofet(e,v+dtheta) - Mofet(e,v) - nofretu(r2_len, e, v+dtheta, u)*dt
-        
-        ## -- full equation -- ##
-        dval = array([dM1e - dM2e - dn2e*dt, dM1t - dM2t - dn2t*dt])
-        ## -- mean motion equation -- ##
-        '''dval = array([dn1e - dn2e, dn1t - dn2t])'''
-        
-        return dval
-    
-    func = lambda x: f(x[0], x[1])
-    dfunc = lambda x: array(fp(x[0], x[1]))
-    #cons = ({'type': 'ineq', 'func': lambda x: x[0]},
-    #        {'type': 'ineq', 'func': lambda x: x[1]},
-    #        {'type': 'ineq', 'func': lambda x: 2*pi - x[1]})
-    
-    e0 = 0.0
-    t0 = 0.0
-    if r1_len >= r2_len:
-        e0 = r2_len/r1_len
-        t0 = pi
-    else:
-        e0 = r1_len/r2_len
-        t0 = 0.0
-    
-    #return f, fp, fmin_tnc(func, [e0, t0], dfunc, bounds=((0.00001, None),(0.,2*pi-0.00001)), disp=5)
-    #return f, fp, minimize(func, [e0, t0], method='TNC', jac=dfunc, bounds=((0.,1.0-1.0e-8),(0.,2.*pi)), options={'disp':5})
-    return f, fp, minimize(func, [e0, t0], method='TNC', bounds=((0.,1.0-1.0e-8),(0.,2.*pi)))
-    
-    #return minimize(func, [0.1, 0.], jac=dfunc, bounds=((0.,None),(0., 2*pi)))
+    return HohmannParams(tof, cosdt, sindt, r1, r2, k, l, m, u)
 
+def getfg(p, params):
+    from numpy import sqrt, tan, arccos
+    
+    tof, cosdt, sindt, r1, r2, k, l, m, u = params
+    tanhalfdt = tan(arccos(cosdt)/2.)
+    f = 1 - r2*(1-cosdt)/p
+    g = r1*r2*sindt/sqrt(u*p)
+    fp = sqrt(u/p)*tanhalfdt*((1-cosdt)/p - 1/r1 - 1/r2)
+    gp = 1-(r1/p)*(1-cosdt)
+    return f, g, fp, gp
 
-def plot_bestfit(f,df,xlow=0.,xhigh=1.,ylow=None,yhigh=None):
-    from numpy import array, linspace, pi, meshgrid, empty
-    from scipy.optimize import minimize
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-    
-    if ylow is None:
-        ylow = -pi
-    if yhigh is None:
-        yhigh = 2*pi
-    
-    ein = linspace(xlow, xhigh, 100)
-    vin = linspace(ylow, yhigh, 100)
-    
-    fz = empty([len(ein), len(vin)])
-    dfez = empty([len(ein), len(vin)])
-    dfvz = empty([len(ein), len(vin)])
-    for i in range(len(ein)):
-        for j in range(len(vin)):
-            fz[i,j] = f(ein[i], vin[j])
-            de, dv = df(ein[i], vin[j])
-            dfez[i,j] = de
-            dfvz[i,j] = dv
-    
-    kw = {'origin':'lower', 'extent':(ylow, yhigh, xlow, xhigh)}
-    
-    fig = plt.figure()
-    ax0 = fig.add_subplot(311)
-    ax0.imshow(fz, aspect='auto', **kw)
-    ax0.contour(vin,ein,fz)
-    ax1 = fig.add_subplot(312)
-    ax1.imshow(dfez, aspect='auto', **kw)
-    ax1.contour(vin,ein,dfez)
-    ax2 = fig.add_subplot(313)
-    ax2.imshow(dfvz, aspect='auto', **kw)
-    ax2.contour(vin,ein,dfvz)
-    plt.show()
+def geta(p, m, k, l):
+    return m*k*p/((2*m-l**2)*p**2+2*k*l*p-k**2)
 
-def plot_ev(f, elow=0., ehigh=1., vlow=0., vhigh=None, res=100, fig=None, subid=None):
-    from numpy import array, linspace, pi, meshgrid, empty, mat
-    from scipy.optimize import minimize
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-    
-    if vhigh is None:
-        vhigh = 2*pi
-    ein = linspace(elow, ehigh, 100)
-    vin = linspace(vlow, vhigh, 100)
-    fz = array([f(e,v) for v in vin for e in ein])
-    fz = mat(fz.reshape([res,res])).T.A
-    
-    if fig is None:
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-    else:
-        ax = fig.add_subplot(subid)
-    ax.imshow(fz, aspect='auto', origin='lower', extent=(vlow, vhigh, elow, ehigh))
-    ax.contour(vin, ein, fz)
+def getdE(a, f, fp, r1, r2):
+    from numpy import sqrt, arctan2
+    cosdE = 1 - r1*(1-f)/a
+    sindE = r1*r2*fp/sqrt(u*a)
+    dE = arctan2(cosdE,sindE)
+    return dE, cosdE, sindE
 
-def test(r1,r2,v1,v2,dt,u):
-    from numpy import pi
-    f, df, mn = hohmann(r1,r2,v1,v2,dt,u)
-    plot_bestfit(f,df,0.,1.,0.,2*pi)
-    return f, df, mn
+def getdF(a, f, r1):
+    from numpy import arccosh, sinh
+    coshdF = 1 - r1*(1-f)/a
+    dF = arccosh(coshdF)
+    sinhdF = sinh(dF)
+    return dF, coshdF, sinhdF
 
-import matplotlib.pyplot as plt
-import ksptools
-import ksptools.util as kspu
-sys = ksptools.loadsystem('KerbolSystem.cfg')
+def gettofE(a, u, dE, sindE, g):
+    from numpy import sqrt
+    return g + sqrt(a**3/u)*(dE-sindE)
+
+def gettofH(a, u, dF, sinhdF, g):
+    from numpy import sqrt
+    return g + sqrt((-a)**3/u)*(sinhdF-dF)
+
+def getv1v2(r1, r2, f, g, fp, gp):
+    v1 = (r2-f*r1)/g
+    v2 = fp*r1 + gp*v1
+    return v1, v2
+
+def toffunc(p, params):
+    tof, cosdt, sindt, r1, r2, k, l, m, u = params
+    f, g, fp, gp = getfg(p, params)
+    
+    a = geta(p, m, k, l)
+    if a > 0.:
+        dE, cosdE, sindE = getdE(a, f, fp, r1, r2)
+        return gettofE(a, u, dE, sindE, g)
+    elif a < 0.:
+        dF, coshdF, sinhdF = getdF(a, f, r1)
+        return gettofH(a, u, dF, sinhdF, g)
+
+def toferrfunc(p, *params):
+    params = HohmannParams(*params)
+    tof = params.tof
+    return (tof - toffunc(p, params))**2
+
+def gaussorbit(r1vec, v1vec, r2vec, v2vec, tof, u):
+    from numpy import array, sqrt
+    from scipy.optimize import minimize, brent
+    
+    ## get constant parameters ##
+    params = getparameters(r1vec, r2vec, tof, u)
+    tof, cosdt, sindt, r1, r2, k, l, m, u = params
+    
+    ## pick bounds and starting semi-latus rectum ##
+    if sindt > 0.0:
+        # dt < pi
+        pmin = k/(l+sqrt(2*m))
+        pmax = float('inf')
+        p0 = pmin + 1e-6
+    elif sindt < 0.0:
+        # dt > pi
+        pmin = 1e-6
+        pmax = k/(l-sqrt(2*m))
+        p0 = (pmin + pmax)/2.
+    
+    print("(pmin, p, pmax)=({},{},{})".format(pmin,p0,pmax))
+    #fmin = toferrfunc(pmin, *params)
+    #fmax = toferrfunc(pmax, *params)
+    #f0   = toferrfunc(p0, *params)
+    #print("(fmin, f0, fmax)={}".format((fmin,f0,fmax)))
+    
+    
+    
+    #p = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(pmin, pmax)], method='SLSQP')
+    p = brent(toferrfunc, args=tuple(params), brack=(pmin, p0, pmax))
+    f,g,fp,gp = getfg(p, params)
+    vevec, vivec = getv1v2(r1vec, r2vec, f, g, fp, gp)
+    return vevec-v1vec, vivec-v2vec
+
 
 if __name__ == '__main__':
-    from numpy import array
-    import ksptools.util
+    import ksptools as ksp
+    import ksptools.util as ksputil
+    from numpy import sqrt
+    from numpy.linalg import norm
+    sys = ksp.loadsystem('KerbolSystem.cfg')
+    s = sys['kerbol']
+    k = sys['kerbin']
+    e = sys['eve']
+    u = s.std_g_param
+    dep=13393440.0
+    arv=18750672.0
+    dt = arv-dep
+    r1, v1 = e.getorbit().rv(dep)
+    r2, v2 = k.getorbit().rv(arv)
     
-    sys = ksptools.loadsystem('KerbolSystem.cfg')
+    params = getparameters(r1, r2, dt, u)
+    print(params)
+    sindt, k, l, m = params.sindt, params.k, params.k, params.m
+    print(k/(l-sqrt(2*m)))
+    if sindt > 0.:
+        ksputil.plotfunc(lambda n: toferrfunc(n,*params), k/(l+sqrt(2*m))+0.e-6, 3*k/(l+sqrt(2*m)))
+    else:
+        ksputil.plotfunc(lambda n: toferrfunc(n,*params), 0.001, k/(l-sqrt(2*m))-0.001)
     
-    #r1 = array([1.,0.])
-    #r2 = array([-1.,0.002])
-    #v1 = None
-    #v2 = None
-    #dt = 2.5
-    #u = 16.
-    #_,_,m=test(r1,r2,v1,v2,dt,u)
-    
-    kerbol = sys['kerbol']
-    kerbin = sys['kerbin']
-    eve = sys['eve']
-    
-    r1,v1 = kerbin.orbit.rv(5793120.0)
-    r2,v2 = eve.orbit.rv(8735256.0)
-    dt = 8735256.0-5793120.0
-    u = kerbol.std_g_param
-    
-    _,_,m=test(r1,r2,v1,v2,dt,u)
-    print(m)
-    print(r1)
-    print(r2)
-    print(ksptools.util.vecsin(r1,r2))
-    print(ksptools.util.arcvec(r1,r2))
-    
+    ve, vi = gaussorbit(r1, v1, r2, v2, arv-dep, s.std_g_param)
+    print(norm(ve))
+    print(norm(vi))

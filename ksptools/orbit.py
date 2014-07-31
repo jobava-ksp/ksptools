@@ -1,28 +1,9 @@
-from . import util
-
-#TODO: move euler angle
-
-class EulerAngle(object):    
-    def __init__(self, p, t, s):
-        Ap = util.rotz(p)  
-        At = util.rotx(t)
-        As = util.rotz(s)
-        
-        self.phi, self.theta, self.psi = p, t, s
-        self.Ap, self.At, self.As = Ap, At, As
-        self.A = Ap*At*As
-    
-    @classmethod
-    def from_pts(cls,p,t,s):
-        return cls(p,t,s)
-    
-    def rotate(self, r):
-        return util.Ax(self.A,r)
-
+from __future__ import division
 
 class KeplerOrbit(object):
     def __init__(self, u, a, e, inc, lon_asc, arg_pe, M, epoch):
         from numpy import sqrt, pi
+        from .util import EulerAngle
         self.u = u
         self.e = e
         self.p = a*(1-e**2)
@@ -34,11 +15,6 @@ class KeplerOrbit(object):
     @classmethod
     def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch):
         return cls(u, a, e, i, lon_asc, arg_pe, M, epoch)
-    
-    #@classmethod
-    #def from_rvu(cls, r, v, u, epoch):
-    #    p,e,M,inc,lon_asc,arg_pe = KeplerOrbit._from_rvu(r,v,u)
-    #    return cls(u, p, e, inc, lon_asc, arg_pe, M, epoch)
 
     @staticmethod
     def from_rvu(r, v, u, epoch=0.):
@@ -135,7 +111,7 @@ class KeplerOrbit(object):
         ct, st, _ = cossin(theta)
         l = p/(1+e*ct)
         vel = sqrt(u*(2./l-1./a))
-        return vel*self.prograde(self, t, theta)
+        return vel*self.prograde(t, theta)
     
     def rv(self, t, theta=None):
         if theta is None:
