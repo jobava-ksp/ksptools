@@ -5,27 +5,7 @@ from scipy.optimize import newton
 from . import unit
 from . import util
 
-#def project(a,b):
-#    return (dot(a,b)/dot(b,b))*b
-
-#def reject(a,b):
-#    return a - (dot(a,b)/dot(b,b))*b
-
-#def rotx(t):
-#    return mat([[1,       0,      0],
-#                [0,  cos(t), sin(t)],
-#                [0, -sin(t), cos(t)]])
-
-#def roty(t):
-#    return mat([[cos(t), 0, -sin(t)],
-#                [0,      1,       0],
-#                [sin(t), 0,  cos(t)]])
-
-#def rotz(t):
-#    return mat([[cos(t), -sin(t), 0],
-#                [sin(t),  cos(t), 0],
-#                [     0,       0, 1]])
-                
+#TODO: move euler angle
 
 class EulerAngle(object):    
     def __init__(self, p, t, s):
@@ -46,30 +26,25 @@ class EulerAngle(object):
 
 
 class KeplerOrbit(object):
-    def __init__(self, body, a, e, inc, lon_asc, arg_pe, M, epoch):
-        self.body = body
+    def __init__(self, u, a, e, inc, lon_asc, arg_pe, M, epoch):
+        self.u = u
         self.e = e
         self.a = a
         self.orient = EulerAngle.from_pts(lon_asc, inc, arg_pe)
-        #self.inc = inc
-        #self.lon_asc = lon_asc
-        #self.arg_pe = arg_pe
-        self.epoch = epoch
-        self.mean_motion = sqrt(body.std_g_param/self.a**3)
-        self.mean_anom = M
+        self.mean_motion = sqrt(u/self.a**3)
+        self.mean_anom = (M - sqrt(u/a**3)*epoch) % pi
      
     @classmethod
-    def from_planet_paremters(cls, body, a, e, i, arg_pe, lon_asc, M, epoch):
-        #p = (1-e**2)*a
-        return cls(body, a, e, i, lon_asc, arg_pe, M, epoch)
+    def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch):
+        return cls(u, a, e, i, lon_asc, arg_pe, M, epoch)
     
-    @classmethod
-    def from_rvbody(cls, r, v, body, epoch, u2=0):
-        p,e,t,inc,lon_asc,arg_pe = KeplerOrbit._from_rvu(r,v,body.std_g_param + u2)
-        return cls(body, p, e, inc, lon_asc, arg_pe, t, epoch)
+    #@classmethod
+    #def from_rvu(cls, r, v, u, epoch):
+    #    p,e,M,inc,lon_asc,arg_pe = KeplerOrbit._from_rvu(r,v,u)
+    #    return cls(u, p, e, inc, lon_asc, arg_pe, M, epoch)
 
     @staticmethod
-    def _from_rvu(r, v, u):
+    def from_rvu(r, v, u, epoch=0.):
         vr = util.project(v,r)
         vt = util.reject(v,r)
         p = (norm(r)*norm(vt))**2/u
@@ -90,44 +65,10 @@ class KeplerOrbit(object):
         inc = arctan2(sqrt(z[0]**2+z[1]**2), z[2])
         arg_pe = arctan2(x[2],y[2])
 
-        return p,e,M,inc,lon_asc,arg_pe
+        #return p,e,M,inc,lon_asc,arg_pe
+        return cls(u, p, e, inc, lon_asc, arg_pe, M, epoch)
 
-    #def rv(self, t, u2=0):
-    #    u = self.body.std_g_param + u2
-    #    a = self.a
-    #    p = self.p
-    #    e = self.e
-    #    
-    #    theta = self.true_anom(t)
-    #    #x,y,z = self.xyz()
-    #    
-    #    len_r = p/(1+e*cos(theta))
-    #    #len_r = (a*(1-e**2))/(1+e*cos(theta))
-    #    unit_r = cos(theta)*x + sin(theta)*y
-    #    unit_t = cos(theta)*y - sin(theta)*x
-    #    r = len_r*unit_r
-    #    vel = sqrt(u*(2/len_r-1/a))
-    #    vt = sqrt(u*p)/len_r
-    #    vr = sqrt(vel**2-vt**2)
-    #    return r, vt*unit_t + vr*unit_r
-
-    def rv(self, t, u2=0):
-        u = self.body.std_g_param + u2
-        a = self.a
-        e = self.e
-        b = a*sqrt(1-e**2)
-        p = a*(1-e**2)
-        ### solve in the orbital plane ###
-        theta = self.true_anom(t)
-        r = p*array([cos(theta), sin(theta), 0])/(1+e*cos(theta))
-        v = array([-r[1]/b**2, r[0]/a**2, 0])
-        ### rotate into equitorial plane ###
-        r = self.orient.rotate(r)
-        v = self.orient.rotate(v)
-        return r,v
-    
-    def E_anom(self, t):
-        dt = t - self.epoch
+    def E_anom(self, dt):
         M = self.mean_anom + (self.mean_motion * dt)
         e = self.e
         n = self.mean_motion
@@ -141,27 +82,49 @@ class KeplerOrbit(object):
         e = self.e
         return 2*arctan(sqrt((1+e)/(1-e))*tan(E/2))
     
-    #def theta(self, t):
-    #    return self.true_anom(t) + self.orient.phi + self.orient.psi
+    def flight_angle(self, t):
+        from .util import cossin
+        e = self.e
+        theta = self.true_anom(t)
+        ect, est, _ = e*cossin(t)
+        return arctan2(1+ect, est)
     
-    #def xyz(self):
-    #    O, i, w = self.lon_asc, self.inc, self.arg_pe
-    #    x = array([
-    #            cos(O)*cos(w) - sin(O)*cos(i)*sin(w),
-    #            sin(O)*cos(w) + cos(O)*cos(i)*sin(w),
-    #            sin(i)*sin(w)])
-    #    y = array([
-    #            -cos(O)*sin(w) - sin(O)*cos(i)*cos(w),
-    #            -sin(O)*sin(w) + cos(O)*cos(i)*cos(w),
-    #            sin(i)*cos(w)])
-    #    z = array([
-    #            sin(i)*sin(O),
-    #            -sin(i)*cos(O),
-    #            cos(i)])
-    #    return x,y,z
+    def prograde(self, t):
+        from .util import cossin, Ax, rotz
+        e = self.e
+        theta = self.true_anom(t)
+        ct, st, _ = cossin(theta)
+        gamma = arctan2(1+e*ct,e*st)
+        pgd = Ax(rotz(gamma + theta, array([-st, ct, 0])))
+        return self.orient.rotate(pgd)
+    
+    def radialin(self, t):
+        from .util import cossin
+        theta = self.true_anom(t)
+        return -self.orient.rotate(cossin(theta))
+    
+    def normal(self, t):
+        return self.orient.rotate(array([0.,0.,1.]))
+    
+    def r(self, t):
+        from .util import cossin
+        p = self.p
+        e = self.e
+        theta = self.true_anom(t)
+        l = p/(1+e*cos(theta))
+        return self.orient.rotate(cossin(theta))*l
+    
+    def v(self, t):
+        p = self.p
+        e = self.e
+        a = self.a
+        u = self.u
+        l = p/(1+e*ct)
+        vel = sqrt(u*(2./l-1./a))
+        return vel*self.prograde(t)
         
     @classmethod
-    def from_config(cls, conf_parser, section, body):
+    def from_config(cls, conf_parser, section, u):
         a = conf_parser.getfloat(section, 'a')
         e = conf_parser.getfloat(section, 'e')
         i = unit.tounit(conf_parser.get(section, 'i'), 'rad')
@@ -172,5 +135,5 @@ class KeplerOrbit(object):
             epoch = conf_parser.getfloat(section, 'epoch')
         else:
             epoch = 0.0
-        return cls.from_planet_paremters(body, a, e, i, arg_pe, lon_asc, M, epoch)
+        return cls.from_planet_paremters(u, a, e, i, arg_pe, lon_asc, M, epoch)
         

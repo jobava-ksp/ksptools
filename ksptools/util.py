@@ -18,6 +18,10 @@ def rotz(t):
                 [sin(t),  cos(t), 0],
                 [     0,       0, 1]])
 
+def cossin(t, dim=3):
+    from numpy import array, sin, cos
+    return array([cos(t), sin(t)] + [0]*(dim-2))
+
 def veccos(a,b):
     from numpy import dot
     from numpy.linalg import norm
