@@ -62,26 +62,28 @@ class KeplerOrbit(object):
     
     def flight_angle(self, t, theta=None):
         from .util import cossin
-        from numpy import arctan2
+        from numpy import arctan
         e = self.e
         if theta is None:
             theta = self.true_anom(t)
-        ect, est, _ = e*cossin(t)
-        return arctan2(1+ect, est)
+        ect, est, _ = e*cossin(theta)
+        return -arctan(est/(1.+ect))
     
     def prograde(self, t, theta=None):
         from .util import cossin, Ax, rotz
-        from numpy import arctan2, array
+        from numpy import array
         e = self.e
         if theta is None:
             theta = self.true_anom(t)
         ct, st, _ = cossin(theta)
-        pgd = Ax(rotz(self.flight_angle(t, theta)), array([-st, ct, 0.]))
+        
+        pgd = Ax(rotz(self.flight_angle(t, theta)+theta), array([0., 1., 0.]))
+        #pgd = Ax(rotz(theta), array([0., 1., 0.]))
         return self.orient.rotate(pgd)
     
     def radialin(self, t, theta=None):
         from .util import cossin, Ax, rotz
-        from numpy import arctan2, array
+        from numpy import array
         e = self.e
         if theta is None:
             theta = self.true_anom(t)
@@ -117,6 +119,10 @@ class KeplerOrbit(object):
         if theta is None:
             theta = self.true_anom(t)
         return self.r(t, theta), self.v(t, theta)
+    
+    def period(self):
+        from numpy import pi
+        return 2*pi/self.mean_motion
         
     @classmethod
     def from_config(cls, conf_parser, section, u):

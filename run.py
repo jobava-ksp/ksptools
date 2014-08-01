@@ -1,33 +1,26 @@
+
 import ksptools
-import numpy as np
-import numpy.linalg as la
-import math
+import ksptools.util as kspu
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from pprint import pprint
 
+sys = ksptools.loadsystem('ToySystem.cfg')
 
-def make_body(
+a = sys['a'].getorbit().kepler
+b = sys['b'].getorbit().kepler
+Ta = a.period()
+Tb = b.period()
 
-#    fig = plt.figure()
-#    fig.add_subplot(2, 2, 1)
-#    plot_orbit_xy(a)
-#    plot_orbit_xy(b)
-#    plot_orbit_xy(c)
-#    plot_orbit_xy(d)
-#    plt.axis('equal')
-#    fig.add_subplot(2, 2, 3)
-#    plot_orbit_xz(a)
-#    plot_orbit_xz(b)
-#    plot_orbit_xz(c)
-#    plot_orbit_xz(d)
-#    plt.axis('equal')
-#    ax = fig.add_subplot(2, 2, 2, projection='3d')
-#    plot_orbit_xyz(ax, a)
-#    plot_orbit_xyz(ax, b)
-#    plot_orbit_xyz(ax, c)
-#    plot_orbit_xyz(ax, d)
-#    plt.show()
-
-
+kspu.plot_semi_orbit(a,0,Ta)
+kspu.plot_semi_orbit(b,0,Tb)
+kspu.plot_rv(a,0.125*Ta)
+kspu.plot_rv(b,0.125*Tb)
+kspu.plot_rv(a,0.375*Ta)
+kspu.plot_rv(b,0.375*Tb)
+kspu.plot_rv(a,0.625*Ta)
+kspu.plot_rv(b,0.625*Tb)
+kspu.plot_rv(a,0.875*Ta)
+kspu.plot_rv(b,0.875*Tb)
+plt.plot([0],[0],'s')
+plt.axis('equal')
+plt.show()
 

@@ -24,6 +24,8 @@ class OrbitalState(State):
     def __init__(self, refbody, kepler, body=None, epoch=0.):
         State.__init__(self, refbody, body, epoch)
         self.kepler = kepler
+        self.rv = self.kepler.rv
+        self.period = self.kepler.period
     
     def asorbit(self):
         return self
@@ -31,9 +33,6 @@ class OrbitalState(State):
     def asvectors(self):
         r, v = self.kepler.rv(self.epoch)
         return VectorState(self.refbody, r, v, self.body, self.epoch)
-    
-    def rv(self, t):
-        return self.kepler.rv(t)
 
 
 class VectorState(State):

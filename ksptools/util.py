@@ -28,11 +28,13 @@ def rotvec(u,t):
 
 def cossin(t, dim=3):
     from numpy import array, sin, cos
-    return array([cos(t), sin(t)] + [0]*(dim-2))
+    return array([cos(t), sin(t)] + [0.]*(dim-2))
 
 def veccos(a,b):
     from numpy import dot
     from numpy.linalg import norm
+    a = unit(a)
+    b = unit(b)
     if norm(a)*norm(b) == 0:
         return 0.0
     return dot(a,b)/(norm(a)*norm(b))
@@ -43,6 +45,8 @@ def vecsin(a,b,zisup=True):
     if len(a) == 2:
         return veccos(array([-a[1], a[0]]), b)
     elif len(a) == 3:
+        a = unit(a)
+        b = unit(b)
         v = cross(a,b)/(norm(a)*norm(b))
         if zisup and v[2] < 0:
             return -norm(v)
@@ -107,13 +111,41 @@ class EulerAngle(object):
 
 
 ### -- matplotlib -- ###
-def plotfunc(f, x0, x1, fg=None):
+def plotfunc(f, x0, x1, ax=None):
     from numpy import linspace
     import matplotlib.pyplot as plt
     x = linspace(x0, x1, 600)
     y = [f(t) for t in x]
     
-    plt.plot(x,y)
-    if fg is None:
+    if ax is None:
+        plt.plot(x,y)
         plt.show()
+    else:
+        ax.plot(x,y)
 
+
+def plot_semi_orbit(kep, t0, t1, ax=None):
+    from numpy import linspace
+    import matplotlib.pyplot as plt
+    
+    t = linspace(t0,t1,600)
+    r = [kep.r(i) for i in t]
+    x, y, z = zip(*r)
+    if ax is None:
+        plotter = plt
+    else:
+        plotter = ax
+    plotter.plot(x,y)
+
+def plot_rv(kep, t, scale=1., ax=None):
+    from numpy import linspace
+    import matplotlib.pyplot as plt
+    
+    r, v = kep.rv(t)
+    if ax is None:
+        plotter = plt
+    else:
+        plotter = ax
+    rv = (r, r+v)
+    x, y, z = zip(*rv)
+    plotter.plot(x,y)
