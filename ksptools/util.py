@@ -137,11 +137,19 @@ def plot_semi_orbit(kep, t0, t1, ax=None):
         plotter = ax
     plotter.plot(x,y)
 
-def plot_rv(kep, t, scale=1., ax=None):
+def plot_semi_orbit3d(kep, t0, t1, ax):
     from numpy import linspace
     import matplotlib.pyplot as plt
     
-    r, v = kep.rv(t)
+    t = linspace(t0,t1,600)
+    r = [kep.r(i) for i in t]
+    x, y, z = zip(*r)
+    ax.plot(x,y,z)
+
+def plot_rv(r, v, scale=1., ax=None):
+    from numpy import linspace
+    import matplotlib.pyplot as plt
+    
     if ax is None:
         plotter = plt
     else:

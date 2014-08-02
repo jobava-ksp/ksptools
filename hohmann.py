@@ -5,6 +5,7 @@ HohmannParams = collections.namedtuple('HohmannParams', ['tof','cosdt','sindt','
 del collections
 
 def getparameters(r1vec, r2vec, tof, u):
+    '''Create a set of gauss-hohmann parameters.'''
     from ksptools.util import veccos, vecsin, unit
     from numpy import sqrt
     from numpy.linalg import norm
@@ -20,6 +21,9 @@ def getparameters(r1vec, r2vec, tof, u):
     return HohmannParams(tof, cosdt, sindt, r1, r2, k, l, m, u)
 
 def getfg(p, params):
+    '''Calculate f, g, f prime, and g prime.'''
+    assert(p > 0)
+    assert(p < float('inf'))
     from numpy import sqrt, tan, arccos
     
     tof, cosdt, sindt, r1, r2, k, l, m, u = params
@@ -31,146 +35,101 @@ def getfg(p, params):
     return f, g, fp, gp
 
 def geta(p, m, k, l):
+    '''Calculate the semi-major axis'''
     return m*k*p/((2.*m-l**2)*p**2. + 2.*k*l*p - k**2)
 
-def getdE(a, f, fp, r1, r2):
+def getdE(a, f, fp, r1, r2, u):
+    '''Calculate the change in eccentric anomally for an elliptical orbit.'''
+    assert(a > 0)
     from numpy import sqrt, arctan, arctan2, pi, sin, cos, arccos, arcsin
     cosdE = 1. - (r1/a)*(1.-f)
     sindE = -(r1*r2*fp)/sqrt(u*a)
-    #dE = arctan2(cosdE,sindE)
-    #dE = arctan(sindE/cosdE)
-    #dE = arcsin(sindE)
     dE = arccos(cosdE)
     if sindE < 0:
         dE = 2*pi - dE
+    assert(dE > 0)
     return dE, cosdE, sindE
 
 def getdF(a, f, r1):
+    '''Calculate the change in eccentric anomally for a hyperbolic orbit.'''
+    assert(a < 0)
     from numpy import arccosh, sinh
     coshdF = 1. - (r1/a)*(1.-f)
     dF = arccosh(coshdF)
     sinhdF = sinh(dF)
     return dF, coshdF, sinhdF
 
-def gettofE(a, u, dE, sindE, g):
-    from numpy import sqrt
-    return g + sqrt(a**3/u)*(dE-sindE)
-
-def gettofH(a, u, dF, sinhdF, g):
-    from numpy import sqrt
-    return g + sqrt((-a)**3/u)*(sinhdF-dF)
-
-def getv1v2(r1, r2, f, g, fp, gp):
+def getv1v2(p, r1, r2, params):
+    f, g, fp, gp = getfg(p, params)
     v1 = (r2-f*r1)/g
     v2 = fp*r1 + gp*v1
     return v1, v2
 
-def toffunc(p, params, returnAll=False):
-    tof, cosdt, sindt, r1, r2, k, l, m, u = params
-    f, g, fp, gp = getfg(p, params)
-    
-    a = geta(p, m, k, l)
-    if a > 0.:
-        dE, cosdE, sindE = getdE(a, f, fp, r1, r2)
-        tof = gettofE(a, u, dE, sindE, g)
-        computedE = True
-    elif a < 0.:
-        dF, coshdF, sinhdF = getdF(a, f, r1)
-        tof = gettofH(a, u, dF, sinhdF, g)
-        computedE = False
-    if returnAll:
-        if computedE:
-            return f, g, fp, gp, a, True, dE
-        else:
-            return f, g, fp, gp, a, False, dF
+def toffunc(p, *params):
+    tof, _, _ = gaussfunc(p, HohmannParams(*params))
     return tof
 
 def toferrfunc(p, *params):
     params = HohmannParams(*params)
     tof = params.tof
-    return abs(tof - toffunc(p, params))
+    return (tof - toffunc(p, *params))**2
 
-def gaussorbit(r1vec, v1vec, r2vec, v2vec, tof, u):
-    from numpy import array, sqrt, arcsin
+def gaussfunc(p, params):
+    from numpy import sqrt
+    tof, cosdt, sindt, r1, r2, k, l, m, u = params
+    f, g, fp, gp = getfg(p, params)
+    a = geta(p, m, k, l)
+    e = sqrt(1-p/a)
+    if a > 0:
+        dE, cosdE, sindE = getdE(a, f, fp, r1, r2, u)
+        tof = g + sqrt(a**3/u)*(dE-sindE)
+    elif a < 0:
+        dF, coshdF, sinhdF = getdF(a, f, r1)
+        tof = g + sqrt((-a)**3/u)*(sinhdF-dF)
+    return (tof, a, e)
+
+def gaussorbit(r1vec, r2vec, tof, u):
+    from numpy import array, sqrt, arcsin, empty
+    from numpy.polynomial.polynomial import polyroots
     from scipy.optimize import minimize, brent, fminbound, minimize_scalar
     
     ## get constant parameters ##
     params = getparameters(r1vec, r2vec, tof, u)
     tof, cosdt, sindt, r1, r2, k, l, m, u = params
     
-    ## pick bounds and starting semi-latus rectum ##
-    p_i  = k/(l-sqrt(2*m))
+    ## pick bounds for the semi-latus rectum ##
+    p_i  = k/(l+sqrt(2*m))
     p_ii = k/(l-sqrt(2*m))
     if arcsin(sindt) > 0.0:
         # dt < pi
         pmin = p_i
-        pmax = float('inf')
-        p0 = pmin + 1e-6
+        pmax = None
     elif arcsin(sindt) < 0.0:
         # dt > pi
-        pmin = 1e-6
-        pmax = p_ii - 1e-6
-        p0 = 0.7*p_ii
+        pmin = min(r1,r2)
+        pmax = p_ii
     
-    print("(pmin, p, pmax)=({},{},{})".format(pmin,p0,pmax))
-    #fmin = toferrfunc(pmin, *params)
-    #fmax = toferrfunc(pmax, *params)
-    #f0   = toferrfunc(p0, *params)
-    #print("(fmin, f0, fmax)={}".format((fmin,f0,fmax)))
+    ## find points where orbit switches between hyperbolic and elliptic ##
+    ## define bounds accordingly                                        ##
+    bounds = [pmin] + [i for i in polyroots([-k**2, 2*k*l, 2*m-l**2]) if i >= pmin and i <= pmax] + [pmax]
+    print(bounds)
     
+    ## minimize over each boundry ##
+    minp = []
+    for i in range(len(bounds)-1):
+        mn = bounds[i]
+        mx = bounds[i+1]
+        if mn == mx:
+            continue
+        if mx is None:
+            p0 = 2*mn
+        else:
+            p0 = (mn+mx)/2
+        optval = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(mn,mx)], method='TNC')
+        minp.append(optval)
     
-    
-    #p = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(pmin, pmax)], method='SLSQP')
-    #p = brent(toferrfunc, args=tuple(params), brack=(pmin, pmax))
-    p = fminbound(toferrfunc, pmin, pmax, args=tuple(params), disp=5)
-    #p = minimize_scalar(toferrfunc, [pmin, pmax], args=tuple(params))
-    f,g,fp,gp = getfg(p, params)
-    vevec, vivec = getv1v2(r1vec, r2vec, f, g, fp, gp)
-    return r1vec, vevec, r2vec, vivec
+    ## find the very best solution ##
+    p = min(minp, key=lambda opt: opt.fun).x[0]
+    return getv1v2(p, r1vec, r2vec, params)
 
-
-if __name__ == '__main__':
-    import ksptools as ksp
-    import ksptools.util as ksputil
-    import matplotlib.pyplot as plt
-    from numpy import sqrt,pi
-    from numpy.linalg import norm
-    sys = ksp.loadsystem('KerbolSystem.cfg')
-    sun = sys['kerbol']
-    kerbin = sys['kerbin']
-    eve = sys['eve']
-    u = sun.std_g_param
-    dep=13393440.0
-    arv=18750672.0
-    dt = arv-dep
-    ever, evev = eve.getorbit().rv(dep)
-    eve_orbital_v = sqrt(eve.std_g_param/(1e+5 + eve.eq_radius))
-    kerbinr, kerbinv = kerbin.getorbit().rv(arv)
-    kerbin_orbital_v = sqrt(kerbin.std_g_param/(1e+5 + kerbin.eq_radius))
-    
-    params = getparameters(ever, kerbinr, dt, u)
-    #print(params)
-    sindt, k, l, m = params.sindt, params.k, params.l, params.m
-    #print(k/(l-sqrt(2*m)))
-    
-    p_ii = k/(l-sqrt(2*m))
-    left=0.1*p_ii
-    right=0.9*p_ii
-    
-    #ksputil.plotfunc(lambda n: toffunc(n,params), k/(l+sqrt(2*m))+0.e-6, 3*k/(l+sqrt(2*m)))
-    
-    plt.figure()
-    ax = plt.subplot(311)
-    ksputil.plotfunc(lambda n: abs(toffunc(n,params) - dt), left, right, ax)
-    ax = plt.subplot(312)
-    for i in range(-2,3):
-        ax.plot([left,right],[i*pi,i*pi])
-    ksputil.plotfunc(lambda n: toffunc(n, params, True)[6], left, right, ax)
-    ax = plt.subplot(313)
-    ksputil.plotfunc(lambda n: toffunc(n, params, True)[4], left, right, ax)
-    plt.show()
-    
-    _, ve, _, vi = gaussorbit(ever, evev, kerbinr, kerbinv, dt, u)
-    print("from eve: {}->{}, {}dv".format(evev, ve, norm(ve-evev)))
-    print("to kerbin: {}->{}, {}dv".format(kerbinv, vi, norm(vi-kerbinv)))
     
