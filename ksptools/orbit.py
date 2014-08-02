@@ -17,34 +17,6 @@ class KeplerOrbit(object):
     @classmethod
     def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch):
         return cls(u, a, e, i, lon_asc, arg_pe, M, epoch)
-
-    #@classmethod
-    #def from_rvu(cls, r, v, u, epoch=0.):
-        #from numpy import arccos, arctan, arctan2, cross, cos, sin, sqrt
-        #from numpy.linalg import norm
-        #from util import project, reject
-        #vr = project(v,r)
-        #vt = reject(v,r)
-        #p = (norm(r)*norm(vt))**2/u
-        #e = sqrt(1 + 2*(norm(v)**2/2 - u/norm(r))*(norm(cross(r,v)))**2/u**2)
-        #if e == 0.0:
-        #    theta = 0
-        #else:
-        #    v0 = sqrt(u/p)
-        #    acos_arg = min(1,max(-1,norm(vt)/(v0*e)-1/e))
-        #    theta = arccos(acos_arg)
-        #E = arccos((e+cos(theta))/(1+e*cos(theta)))
-        #M = E - e*sin(E)
-        #
-        #x = cos(theta)*(r/norm(r)) - sin(theta)*(vt/norm(vt))
-        #y = sin(theta)*(r/norm(r)) + cos(theta)*(vt/norm(vt))
-        #z = cross(x,y)
-        #lon_asc = arctan2(z[0], -z[1])
-        #inc = arctan2(sqrt(z[0]**2+z[1]**2), z[2])
-        #arg_pe = arctan2(x[2],y[2])
-
-        ##return p,e,M,inc,lon_asc,arg_pe
-        #return cls(u, p, e, inc, lon_asc, arg_pe, M, epoch)
     
     @classmethod
     def from_rvu(cls, rvec, velvec, u, epoch=0.):
@@ -68,11 +40,15 @@ class KeplerOrbit(object):
         la = arccos(n[0]/norm(n))
         if n[1] < 0: la = 2*pi - la
         
-        argpe = arccos(dot(n,evec)/(norm(n)*norm(evec)))
+        _a = dot(n,evec)/(norm(n)*norm(evec))
+        _a = max(-1.0, min(1.0, _a))
+        argpe = arccos(_a)
         if evec[2] > 0: argpe = 2*pi - argpe
         
         costa = dot(evec,rvec)/(norm(evec)*norm(rvec))
-        E = arccos((e+costa)/(1+e*costa))
+        _a = (e+costa)/(1+e*costa)
+        _a = max(-1.0, min(1.0, _a))
+        E = arccos(_a)
         M = E - e*sin(E)
         if dot(rvec, velvec) > 0: M = 2*pi - M
         

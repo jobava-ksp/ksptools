@@ -13,6 +13,7 @@ def getparameters(r1vec, r2vec, tof, u):
     
     cosdt = veccos(r1vec, r2vec)
     sindt = vecsin(r1vec, r2vec)
+    
     r1, r2 = norm(r1vec), norm(r2vec)
     k = r1*r2*(1.-cosdt)
     l = r1 + r2
@@ -36,6 +37,7 @@ def getfg(p, params):
 
 def geta(p, m, k, l):
     '''Calculate the semi-major axis'''
+    assert(p > 0)
     return m*k*p/((2.*m-l**2)*p**2. + 2.*k*l*p - k**2)
 
 def getdE(a, f, fp, r1, r2, u):
@@ -100,13 +102,13 @@ def gaussorbit(r1vec, r2vec, tof, u):
     ## pick bounds for the semi-latus rectum ##
     p_i  = k/(l+sqrt(2*m))
     p_ii = k/(l-sqrt(2*m))
-    if arcsin(sindt) > 0.0:
+    if sindt > 0.0:
         # dt < pi
         pmin = p_i
         pmax = None
-    elif arcsin(sindt) < 0.0:
+    elif sindt < 0.0:
         # dt > pi
-        pmin = min(r1,r2)
+        pmin = 0.
         pmax = p_ii
     
     ## find points where orbit switches between hyperbolic and elliptic ##
@@ -116,16 +118,19 @@ def gaussorbit(r1vec, r2vec, tof, u):
     
     ## minimize over each boundry ##
     minp = []
+    err = 1e-5
     for i in range(len(bounds)-1):
         mn = bounds[i]
         mx = bounds[i+1]
-        if mn == mx:
-            continue
         if mx is None:
             p0 = 2*mn
+        elif abs(mx-mn) <= err*2:
+            continue
         else:
             p0 = (mn+mx)/2
-        optval = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(mn,mx)], method='TNC')
+            mx -= err
+        optval = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(mn+err,mx)], method='TNC')
+        print(optval)
         minp.append(optval)
     
     ## find the very best solution ##

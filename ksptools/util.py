@@ -33,22 +33,19 @@ def cossin(t, dim=3):
 def veccos(a,b):
     from numpy import dot
     from numpy.linalg import norm
-    a = unit(a)
-    b = unit(b)
     if norm(a)*norm(b) == 0:
         return 0.0
     return dot(a,b)/(norm(a)*norm(b))
 
-def vecsin(a,b,zisup=True):
-    from numpy import array, cross
+def vecsin(a,b,up=[0.,0.,1.]):
+    from numpy import array, cross, dot
     from numpy.linalg import norm
+    up = array(up)
     if len(a) == 2:
         return veccos(array([-a[1], a[0]]), b)
     elif len(a) == 3:
-        a = unit(a)
-        b = unit(b)
         v = cross(a,b)/(norm(a)*norm(b))
-        if zisup and v[2] < 0:
+        if dot(v,up) < 0:
             return -norm(v)
         else:
             return norm(v)
@@ -146,7 +143,7 @@ def plot_semi_orbit3d(kep, t0, t1, ax):
     x, y, z = zip(*r)
     ax.plot(x,y,z)
 
-def plot_rv(r, v, scale=1., ax=None):
+def plot_rv(r, v, ax=None, scale=1.):
     from numpy import linspace
     import matplotlib.pyplot as plt
     
@@ -157,3 +154,12 @@ def plot_rv(r, v, scale=1., ax=None):
     rv = (r, r+v)
     x, y, z = zip(*rv)
     plotter.plot(x,y)
+
+def plot_rv3d(r, v, ax, scale=1.):
+    from numpy import linspace
+    import matplotlib.pyplot as plt
+
+    rv = (r, r+v)
+    x, y, z = zip(*rv)
+    ax.plot(x,y,z)
+    
