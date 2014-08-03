@@ -33,9 +33,10 @@ def cossin(t, dim=3):
 def veccos(a,b):
     from numpy import dot
     from numpy.linalg import norm
-    if norm(a)*norm(b) == 0:
-        return 0.0
-    return dot(a,b)/(norm(a)*norm(b))
+    _a = dot(a,b)/(norm(a)*norm(b))
+    #if norm(a)*norm(b) == 0:
+    #    return 0.0
+    return min(1.0, max(-1.0, _a))
 
 def vecsin(a,b,up=[0.,0.,1.]):
     from numpy import array, cross, dot

@@ -9,10 +9,13 @@ class KeplerOrbit(object):
         self.p = a*(1-e**2)
         self.a = a
         self.orient = EulerAngle.from_pts(lon_asc, inc, arg_pe)
-        self.mean_motion = sqrt(u/self.a**3)
-        #while M < 0:
-        #    M += 2*pi
-        self.mean_anom = M
+        self.epoch = epoch
+        if a > 0:
+            self.mean_motion = sqrt(u/self.a**3)
+            self.mean_anom = M
+        elif a < 0:
+            self.mean_motion = sqrt(u/(-self.a)**3)
+            self.mean_anom = M
      
     @classmethod
     def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch):
@@ -20,7 +23,7 @@ class KeplerOrbit(object):
     
     @classmethod
     def from_rvu(cls, rvec, velvec, u, epoch=0.):
-        from numpy import cross, array, dot, arccos, sin, cos, pi
+        from numpy import cross, array, dot, arccos, arccosh, sin, sinh, cos, pi
         from numpy.linalg import norm
         from .util import veccos
         r = norm(rvec)
@@ -40,17 +43,22 @@ class KeplerOrbit(object):
         la = arccos(n[0]/norm(n))
         if n[1] < 0: la = 2*pi - la
         
-        _a = dot(n,evec)/(norm(n)*norm(evec))
-        _a = max(-1.0, min(1.0, _a))
-        argpe = arccos(_a)
-        if evec[2] > 0: argpe = 2*pi - argpe
+        #_a = dot(n,evec)/(norm(n)*norm(evec))
+        #_a = max(-1.0, min(1.0, _a))
+        argpe = arccos(veccos(n,evec))
+        if evec[2] < 0: argpe = 2*pi - argpe
         
-        costa = dot(evec,rvec)/(norm(evec)*norm(rvec))
-        _a = (e+costa)/(1+e*costa)
-        _a = max(-1.0, min(1.0, _a))
-        E = arccos(_a)
-        M = E - e*sin(E)
-        if dot(rvec, velvec) > 0: M = 2*pi - M
+        costa = veccos(evec, rvec)
+        #costa = dot(evec,rvec)/(norm(evec)*norm(rvec))
+        #_a = (e+costa)/(1+e*costa)
+        #_a = max(-1.0, min(1.0, _a))
+        if a > 0:
+            E = arccos((e+costa)/(1+e*costa))
+            M = E - e*sin(E)
+        elif a < 0:
+            F = arccosh((e+costa)/(1+e*costa))
+            M = e*sinh(F) - F
+        if dot(rvec, velvec) < 0: M = 2*pi - M
         
         return cls(u, a, e, i, la, argpe, M, epoch)
 
@@ -64,20 +72,42 @@ class KeplerOrbit(object):
         fp2 = lambda nE: e*sin(nE)
         return newton(f,0,fp,fprime2=fp2)
     
-    def true_anom(self, t):
-        from numpy import arctan, tan, sqrt
-        E = self.E_anom(t)
+    def F_anom(self, dt):
+        from numpy import cosh, sinh
+        from scipy.optimize import newton
+        M = self.mean_anom + (self.mean_motion * dt)
         e = self.e
-        return 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
+        f = lambda nF: e*sinh(nF) - nF - M
+        fp = lambda nF: e*cosh(nF) - 1
+        fp2 = lambda nF: e*sinh(nF)
+        return newton(f,0,fp,fprime2=fp2)
     
-    def flight_angle(self, t, theta=None):
+    def true_anom(self, t):
+        from numpy import arctan, arccos, tan, sqrt, cosh
+        t -= self.epoch
+        e = self.e
+        a = self.a
+        if a > 0:
+            E = self.E_anom(t)
+            return 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
+        elif a < 0 and e != 1:
+            F = self.F_anom(t)
+            ta = arccos((e-cosh(F))/(e*cosh(F)-1))
+            if F < 0:
+                return -ta
+            else:
+                return ta
+        raise Exception("Peribolic orbits are not supported")
+    
+    def flightvec(self, t, theta=None):
         from .util import cossin
-        from numpy import arctan
+        from numpy import array, arctan, arctan2, pi
         e = self.e
         if theta is None:
             theta = self.true_anom(t)
-        ect, est, _ = e*cossin(theta)
-        return -arctan(est/(1.+ect))
+        ct, st, _ = cossin(theta)
+        return array([-st, e+ct, 0])
+        #return 0.
     
     def prograde(self, t, theta=None):
         from .util import cossin, Ax, rotz
@@ -87,8 +117,7 @@ class KeplerOrbit(object):
             theta = self.true_anom(t)
         ct, st, _ = cossin(theta)
         
-        pgd = Ax(rotz(self.flight_angle(t, theta)+theta), array([0., 1., 0.]))
-        #pgd = Ax(rotz(theta), array([0., 1., 0.]))
+        pgd = self.flightvec(t, theta)
         return self.orient.rotate(pgd)
     
     def radialin(self, t, theta=None):
@@ -98,10 +127,10 @@ class KeplerOrbit(object):
         if theta is None:
             theta = self.true_anom(t)
         ct, st, _ = cossin(theta)
-        rad = Ax(rotz(self.flight_angle(t, theta)), array([-1., 0., 0.]))
+        rad = Ax(rotz(self.flightvec(t, theta)), array([-1., 0., 0.]))
         return self.orient.rotate(rad)
     
-    def normal(self, t):
+    def normal(self):
         from numpy import array
         return self.orient.rotate(array([0.,0.,1.]))
     
@@ -113,6 +142,12 @@ class KeplerOrbit(object):
             theta = self.true_anom(t)
         l = p/(1+e*cos(theta))
         return self.orient.rotate(cossin(theta))*l
+    
+    def pe(self):
+        from numpy import array
+        p = self.p
+        e = self.e
+        return self.orient.rotate(array([1.,0.,0.]))*p/(1+e)
     
     def v(self, t, theta=None):
         from .util import cossin, Ax, rotz
@@ -132,7 +167,10 @@ class KeplerOrbit(object):
     
     def period(self):
         from numpy import pi
-        return 2*pi/self.mean_motion
+        if self.a > 0:
+            return 2*pi/self.mean_motion
+        elif self.a < 0:
+            return float('inf')
         
     @classmethod
     def from_config(cls, conf_parser, section, u):

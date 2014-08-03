@@ -4,6 +4,10 @@ import collections
 HohmannParams = collections.namedtuple('HohmannParams', ['tof','cosdt','sindt','r1','r2','k','l','m','u'])
 del collections
 
+class HohmannException(Exception):
+    def __init__(self, msg):
+        Exception.__init__(self, msg)
+
 def getparameters(r1vec, r2vec, tof, u):
     '''Create a set of gauss-hohmann parameters.'''
     from ksptools.util import veccos, vecsin, unit
@@ -46,7 +50,8 @@ def getdE(a, f, fp, r1, r2, u):
     from numpy import sqrt, arctan, arctan2, pi, sin, cos, arccos, arcsin
     cosdE = 1. - (r1/a)*(1.-f)
     sindE = -(r1*r2*fp)/sqrt(u*a)
-    dE = arccos(cosdE)
+    _a = min(1.0, max(-1.0, cosdE))
+    dE = arccos(_a)
     if sindE < 0:
         dE = 2*pi - dE
     assert(dE > 0)
@@ -73,8 +78,9 @@ def toffunc(p, *params):
 
 def toferrfunc(p, *params):
     params = HohmannParams(*params)
-    tof = params.tof
-    return (tof - toffunc(p, *params))**2
+    etof = params.tof
+    vtof, _, _ = gaussfunc(p, params)
+    return (etof - vtof)**2
 
 def gaussfunc(p, params):
     from numpy import sqrt
@@ -90,10 +96,10 @@ def gaussfunc(p, params):
         tof = g + sqrt((-a)**3/u)*(sinhdF-dF)
     return (tof, a, e)
 
-def gaussorbit(r1vec, r2vec, tof, u):
-    from numpy import array, sqrt, arcsin, empty
+def gaussorbit(r1vec, r2vec, tof, u, err=1e-5):
+    from numpy import array, sqrt, arcsin, empty, finfo, seterr
     from numpy.polynomial.polynomial import polyroots
-    from scipy.optimize import minimize, brent, fminbound, minimize_scalar
+    from scipy.optimize import minimize, minimize_scalar
     
     ## get constant parameters ##
     params = getparameters(r1vec, r2vec, tof, u)
@@ -110,28 +116,35 @@ def gaussorbit(r1vec, r2vec, tof, u):
         # dt > pi
         pmin = 0.
         pmax = p_ii
+    elif sindt == 0.0:
+        raise HohmannException("True anommoly is zero or pi.")
     
     ## find points where orbit switches between hyperbolic and elliptic ##
     ## define bounds accordingly                                        ##
+    
     bounds = [pmin] + [i for i in polyroots([-k**2, 2*k*l, 2*m-l**2]) if i >= pmin and i <= pmax] + [pmax]
-    print(bounds)
     
     ## minimize over each boundry ##
     minp = []
-    err = 1e-5
     for i in range(len(bounds)-1):
+        iter_err = err
         mn = bounds[i]
         mx = bounds[i+1]
         if mx is None:
             p0 = 2*mn
-        elif abs(mx-mn) <= err*2:
+        elif abs(mx-mn) <= iter_err*2:
             continue
         else:
             p0 = (mn+mx)/2
-            mx -= err
-        optval = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(mn+err,mx)], method='TNC')
-        print(optval)
+            mx -= iter_err
+        default_err = seterr(divide='raise', invalid='raise')
+        optval = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(mn+iter_err,mx)], method='TNC')
+        #optval = minimize_scalar(toferrfunc, bounds=(mn+iter_err, mx), method='bounded')
+        seterr(**default_err)
         minp.append(optval)
+    
+    if not len(minp):
+        return None
     
     ## find the very best solution ##
     p = min(minp, key=lambda opt: opt.fun).x[0]
