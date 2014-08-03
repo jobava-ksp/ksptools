@@ -24,7 +24,16 @@ gilly = kerbol_sys['gilly']
 kerbin = kerbol_sys['kerbin']
 mun = kerbol_sys['mun']
 minmus = kerbol_sys['minmus']
-
+duna = kerbol_sys['duna']
+ike = kerbol_sys['ike']
+dres = kerbol_sys['dres']
+jool = kerbol_sys['jool']
+laythe = kerbol_sys['laythe']
+vall = kerbol_sys['vall']
+tyloo = kerbol_sys['tyloo']
+bop = kerbol_sys['bop']
+pol = kerbol_sys['pol']
+eeloo = kerbol_sys['eeloo']
 
 def dohohmann(akep, bkep, u, dep, dt):
     r1, v1 = akep.rv(dep)
@@ -97,8 +106,10 @@ def testhohmann(akep, bkep, u, t0min, t0max, dtmin, dtmax, trials):
 
 #printahohmann(_akep, _bkep, _sun.std_g_param, 0., 0.125)
 
+kerbin_kepler = kerbin.getorbit().kepler
+
 n = datetime.datetime.now()
-testhohmann(_akep, _bkep, _sun.std_g_param, 0., 100., 0.1, 100., 100)
+testhohmann(_akep, _bkep, _sun.std_g_param, 0., 100., 0.1, 10., 100)
 print((datetime.datetime.now()-n).total_seconds())
 
 

@@ -102,10 +102,10 @@ class EulerAngle(object):
         return Ax(self.A.T,r)
     
     def __mul__(self, r):
-        return self.rotate(r)
+        return Ax(self.A,r)
     
     def __div__(self, r):
-        return self.derotate(r)
+        return Ax(self.A.T,r)
 
 
 ### -- matplotlib -- ###
