@@ -1,15 +1,15 @@
 from __future__ import print_function, division
 
 import collections
-HohmannParams = collections.namedtuple('HohmannParams', ['tof','cosdt','sindt','r1','r2','k','l','m','u'])
+TransferParams = collections.namedtuple('TransferParams', ['tof','cosdt','sindt','r1','r2','k','l','m','u'])
 del collections
 
-class HohmannException(Exception):
+class TransferException(Exception):
     def __init__(self, msg):
         Exception.__init__(self, msg)
 
 def getparameters(r1vec, r2vec, tof, u):
-    '''Create a set of gauss-hohmann parameters.'''
+    '''Create a set of transfer parameters.'''
     from ksptools.util import veccos, vecsin, unit
     from numpy import sqrt
     from numpy.linalg import norm
@@ -23,7 +23,7 @@ def getparameters(r1vec, r2vec, tof, u):
     l = r1 + r2
     m = r1*r2*(1.+cosdt)
     
-    return HohmannParams(tof, cosdt, sindt, r1, r2, k, l, m, u)
+    return TransferParams(tof, cosdt, sindt, r1, r2, k, l, m, u)
 
 def getfg(p, params):
     '''Calculate f, g, f prime, and g prime.'''
@@ -67,39 +67,51 @@ def getdF(a, f, r1):
     return dF, coshdF, sinhdF
 
 def getv1v2(p, r1, r2, params):
+    '''Calculate orbital velocities at r1 and r2'''
     f, g, fp, gp = getfg(p, params)
     v1 = (r2-f*r1)/g
     v2 = fp*r1 + gp*v1
     return v1, v2
 
 def toffunc(p, *params):
-    tof, _, _ = gaussfunc(p, HohmannParams(*params))
+    '''Calculate time of flight by semi-latus rectum'''
+    tof, _, _ = gaussfunc(p, TransferParams(*params))
     return tof
 
 def toferrfunc(p, *params):
-    params = HohmannParams(*params)
+    '''Calculate difference of target time of flight and orbital time of flight.'''
+    params = TransferParams(*params)
     etof = params.tof
-    vtof, _, _ = gaussfunc(p, params)
+    vtof, _ = gaussfunc(p, params)
+    return etof - vtof
+
+def toferr2func(p, *params):
+    '''Calculate the square difference of target time of flight and orbital time of flight.'''
+    params = TransferParams(*params)
+    etof = params.tof
+    vtof, _ = gaussfunc(p, params)
     return (etof - vtof)**2
 
 def gaussfunc(p, params):
+    '''Compute orbital parameters for a semi-latus rectum.'''
     from numpy import sqrt
     tof, cosdt, sindt, r1, r2, k, l, m, u = params
     f, g, fp, gp = getfg(p, params)
     a = geta(p, m, k, l)
-    e = sqrt(1-p/a)
+    #e = sqrt(1-p/a)
     if a > 0:
         dE, cosdE, sindE = getdE(a, f, fp, r1, r2, u)
         tof = g + sqrt(a**3/u)*(dE-sindE)
     elif a < 0:
         dF, coshdF, sinhdF = getdF(a, f, r1)
         tof = g + sqrt((-a)**3/u)*(sinhdF-dF)
-    return (tof, a, e)
+    return (tof, a)
 
-def gaussorbit(r1vec, r2vec, tof, u, err=1e-5):
+def planar_transfer(r1vec, r2vec, tof, u, err=1e-5, maxp=1.0e+21):
+    '''Calculate a transfer on a slingle plane.'''
     from numpy import array, sqrt, arcsin, empty, finfo, seterr
     from numpy.polynomial.polynomial import polyroots
-    from scipy.optimize import minimize, minimize_scalar
+    from scipy.optimize import minimize, minimize_scalar, fminbound, bisect, brentq, brenth
     
     ## get constant parameters ##
     params = getparameters(r1vec, r2vec, tof, u)
@@ -117,11 +129,10 @@ def gaussorbit(r1vec, r2vec, tof, u, err=1e-5):
         pmin = 0.
         pmax = p_ii
     elif sindt == 0.0:
-        raise HohmannException("True anommoly is zero or pi.")
+        raise TransferException("True anommoly is zero or pi.")
     
     ## find points where orbit switches between hyperbolic and elliptic ##
     ## define bounds accordingly                                        ##
-    
     bounds = [pmin] + [i for i in polyroots([-k**2, 2*k*l, 2*m-l**2]) if i >= pmin and i <= pmax] + [pmax]
     
     ## minimize over each boundry ##
@@ -130,16 +141,31 @@ def gaussorbit(r1vec, r2vec, tof, u, err=1e-5):
         iter_err = err
         mn = bounds[i]
         mx = bounds[i+1]
-        if mx is None:
-            p0 = 2*mn
-        elif abs(mx-mn) <= iter_err*2:
+        
+        # check for small intervals #
+        if mx is not None and abs(mx-mn) <= iter_err*4:
             continue
+        
+        # fix mn and mx for algorithm #
+        if mx is None:
+            mx = maxp
+            p0 = min(params.r1, params.r2, maxp-iter_err)
         else:
-            p0 = (mn+mx)/2
-            mx -= iter_err
+            p0 = (mx+mn)/2
+        mx -= iter_err
+        mn += iter_err
+        
+        # check for intervals that do not intersect zero #
+        mxtof, _ = gaussfunc(mx, params)
+        mntof, _ = gaussfunc(mn, params)
+        if (mntof - tof)*(mxtof - tof) >= 0:
+            continue
+        
+        # bisect it down #
+        p0 = brenth(toferrfunc, mn, mx, args=tuple(params), maxiter=7, disp=False)
+        
         default_err = seterr(divide='raise', invalid='raise')
-        optval = minimize(toferrfunc, [p0], args=tuple(params), bounds=[(mn+iter_err,mx)], method='TNC')
-        #optval = minimize_scalar(toferrfunc, bounds=(mn+iter_err, mx), method='bounded')
+        optval = minimize(toferr2func, [p0], args=tuple(params), bounds=[(mn, mx)], method='TNC')
         seterr(**default_err)
         minp.append(optval)
     

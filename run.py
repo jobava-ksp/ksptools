@@ -30,10 +30,12 @@ def dohohmann(akep, bkep, u, dep, dt):
     r1, v1 = akep.rv(dep)
     r2, v2 = bkep.rv(dep+dt)
     
-    vh1vh2 = hmn.gaussorbit(r1, r2, dt, u)
+    vh1vh2 = hmn.planar_transfer(r1, r2, dt, u)
     if vh1vh2:
         vh1, vh2 = vh1vh2
         return ksporbit.KeplerOrbit.from_rvu(r1, vh1, u, dep), r1, vh1, r2, vh2
+    else:
+        return None
 
 
 def printahohmann(akep, bkep, u, t0, dur):
@@ -79,12 +81,19 @@ def testhohmann(akep, bkep, u, t0min, t0max, dtmin, dtmax, trials):
     from numpy import linspace
     t0 = linspace(t0min, t0max, trials)
     dt = linspace(dtmin, dtmax, trials)
+    cpass = 0
+    cfail = 0
     for s, d in product(t0, dt):
-        try:
-            dohohmann(akep, bkep, u, s, d)
-        except Exception as e:
-            print("{},{}".format(s,d))
-            print(e)
+        #try:
+        r = dohohmann(akep, bkep, u, s, d)
+        #except Exception as e:
+        #    print("{},{}".format(s,d))
+        #    print(e)
+        if r is None:
+            cfail += 1
+        else:
+            cpass += 1
+    print("{}% pass".format(float(cpass)/float(cpass+cfail)))
 
 #printahohmann(_akep, _bkep, _sun.std_g_param, 0., 0.125)
 
