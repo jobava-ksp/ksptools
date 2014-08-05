@@ -26,6 +26,7 @@ class KeplerOrbit(object):
         from numpy import cross, array, dot, arccos, arccosh, sin, sinh, cos, pi
         from numpy.linalg import norm
         from .util import veccos
+        
         r = norm(rvec)
         v = norm(velvec)
         evec = (1./u)*((v**2-u/r)*rvec-dot(rvec,velvec)*velvec)
@@ -43,15 +44,10 @@ class KeplerOrbit(object):
         la = arccos(n[0]/norm(n))
         if n[1] < 0: la = 2*pi - la
         
-        #_a = dot(n,evec)/(norm(n)*norm(evec))
-        #_a = max(-1.0, min(1.0, _a))
         argpe = arccos(veccos(n,evec))
         if evec[2] < 0: argpe = 2*pi - argpe
         
         costa = veccos(evec, rvec)
-        #costa = dot(evec,rvec)/(norm(evec)*norm(rvec))
-        #_a = (e+costa)/(1+e*costa)
-        #_a = max(-1.0, min(1.0, _a))
         if a > 0:
             E = arccos((e+costa)/(1+e*costa))
             M = E - e*sin(E)
@@ -89,7 +85,7 @@ class KeplerOrbit(object):
         e = self.eccentricity
         a = self.semi_major_axis
         if a > 0:
-            E = self.eccentricity_anom(t)
+            E = self.E_anom(t)
             return 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
         elif a < 0 and e != 1:
             F = self.F_anom(t)
@@ -100,26 +96,17 @@ class KeplerOrbit(object):
                 return ta
         raise Exception("Peribolic orbits are not supported")
     
-    def flightvec(self, t, theta=None):
-        from .util import cossin
-        from numpy import array, arctan, arctan2, pi
-        e = self.eccentricity
-        if theta is None:
-            theta = self.true_anom(t)
-        ct, st, _ = cossin(theta)
-        return array([-st, e+ct, 0])
-        #return 0.
+    def time_at_true_anom(self, theta):
+        raise NotImplementedError
     
     def prograde(self, t, theta=None):
-        from .util import cossin, Ax, rotz
+        from .util import cossin, Ax
         from numpy import array
         e = self.eccentricity
         if theta is None:
             theta = self.true_anom(t)
         ct, st, _ = cossin(theta)
-        
-        pgd = self.flightvec(t, theta)
-        return self.orientation * pgd
+        return self.orientation * array([-st, e+ct, 0])
     
     def radialin(self, t, theta=None):
         from .util import cossin, Ax, rotz

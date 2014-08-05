@@ -15,6 +15,9 @@ def getparameters(r1vec, r2vec, tof, u):
     from numpy.linalg import norm
     from collections import namedtuple
     
+    assert(tof > 0.0)
+    assert(u > 0)
+    
     cosdt = veccos(r1vec, r2vec)
     sindt = vecsin(r1vec, r2vec)
     
@@ -41,8 +44,21 @@ def getfg(p, params):
 
 def geta(p, m, k, l):
     '''Calculate the semi-major axis'''
-    assert(p > 0)
-    return m*k*p/((2.*m-l**2)*p**2. + 2.*k*l*p - k**2)
+    import numpy as np
+    assert(p > 0.0)
+    while True:
+        over = m*k*p
+        under = ((2.*m-l**2)*p**2. + 2.*k*l*p - k**2)
+        if under == 0:
+            if over*under > 0:
+                p += np.spacing(p)
+            else:
+                p -= np.spacing(p)
+        else:
+            break
+    
+    a = over/under
+    return a
 
 def getdE(a, f, fp, r1, r2, u):
     '''Calculate the change in eccentric anomally for an elliptical orbit.'''
@@ -54,7 +70,9 @@ def getdE(a, f, fp, r1, r2, u):
     dE = arccos(_a)
     if sindE < 0:
         dE = 2*pi - dE
-    assert(dE > 0)
+    #if dE <= 0:
+    #    print(a)
+    assert(dE >= 0)
     return dE, cosdE, sindE
 
 def getdF(a, f, r1):
@@ -75,7 +93,7 @@ def getv1v2(p, r1, r2, params):
 
 def toffunc(p, *params):
     '''Calculate time of flight by semi-latus rectum'''
-    tof, _, _ = gaussfunc(p, TransferParams(*params))
+    tof, _ = gaussfunc(p, TransferParams(*params))
     return tof
 
 def toferrfunc(p, *params):
@@ -107,9 +125,9 @@ def gaussfunc(p, params):
         tof = g + sqrt((-a)**3/u)*(sinhdF-dF)
     return (tof, a)
 
-def planar_transfer(r1vec, r2vec, tof, u, err=1e-5, maxp=1.0e+21):
+def planar_transfer(r1vec, r2vec, tof, u, minp=0., maxp=1.0e+14):
     '''Calculate a transfer on a slingle plane.'''
-    from numpy import array, sqrt, arcsin, empty, finfo, seterr
+    from numpy import array, sqrt, arcsin, empty, spacing, seterr
     from numpy.polynomial.polynomial import polyroots
     from scipy.optimize import minimize, minimize_scalar, fminbound, bisect, brentq, brenth
     
@@ -122,58 +140,90 @@ def planar_transfer(r1vec, r2vec, tof, u, err=1e-5, maxp=1.0e+21):
     p_ii = k/(l-sqrt(2*m))
     if sindt > 0.0:
         # dt < pi
-        pmin = p_i
-        pmax = None
+        bound_min = p_i
+        bound_max = maxp
+        pnm1 = p_i
+        pn = p_i + r1
     elif sindt < 0.0:
         # dt > pi
-        pmin = 0.
-        pmax = p_ii
+        bound_min = minp
+        bound_max = p_ii
+        #p = p0 = 2*(bound_min + bound_max)/3
+        #p1 = p0 + p0*1e-5
+        pnm1 = minp
+        pn = minp + 1e-1*minp
     elif sindt == 0.0:
         raise TransferException("True anommoly is zero or pi.")
     
+    try:
+        tnm1 = toffunc(pnm1, *params)
+        while True:
+            tn = toffunc(pn, *params)
+            if abs(tn - tof) < spacing(tof):
+                p = pn
+                break
+            pnp1 = pn + (tof - tn)*(pn - pnm1)/(tn-tnm1)
+            pn, pnm1 = pnp1, pn
+            tnm1 = tn
+    except:
+        return None
+    
+    '''
     ## find points where orbit switches between hyperbolic and elliptic ##
     ## define bounds accordingly                                        ##
-    bounds = [pmin] + [i for i in polyroots([-k**2, 2*k*l, 2*m-l**2]) if i >= pmin and i <= pmax] + [pmax]
+    bounds = [bound_min] + [i for i in polyroots([-k**2, 2*k*l, 2*m-l**2]) if i > bound_min and i < bound_max] + [bound_max]
     
     ## minimize over each boundry ##
     minp = []
     for i in range(len(bounds)-1):
-        iter_err = err
         mn = bounds[i]
         mx = bounds[i+1]
         
-        # check for small intervals #
-        if mx is not None and abs(mx-mn) <= iter_err*4:
+        # fix mn and mx for algorithm #
+        if mx == bound_max:
+            mx -= spacing((2**32)*mx)
+            p0 = min((params.r1 + params.r2)/2, maxp)
+        else:
+            p0 = (mn+mx)/2
+        mn += spacing((2**32)*mn)
+        
+        if mn >= mx:
             continue
         
-        # fix mn and mx for algorithm #
-        if mx is None:
-            mx = maxp
-            p0 = min(params.r1, params.r2, maxp-iter_err)
-        else:
-            p0 = (mx+mn)/2
-        mx -= iter_err
-        mn += iter_err
-        
-        # check for intervals that do not intersect zero #
+        #default_err = seterr(divide='raise', invalid='raise')
+        # bisect it down #
+        #try:
         mxtof, _ = gaussfunc(mx, params)
         mntof, _ = gaussfunc(mn, params)
-        if (mntof - tof)*(mxtof - tof) >= 0:
-            continue
+        #except:
+        #    print("[{},{}]".format(mn,mx))
+        #    print(bounds)
+        #    continue
+            
+        if (mntof - tof)*(mxtof - tof) <= 0:
+            p0 = brenth(toferrfunc, mn, mx, args=tuple(params), maxiter=9, disp=False)
         
-        # bisect it down #
-        p0 = brenth(toferrfunc, mn, mx, args=tuple(params), maxiter=7, disp=False)
         
-        default_err = seterr(divide='raise', invalid='raise')
         optval = minimize(toferr2func, [p0], args=tuple(params), bounds=[(mn, mx)], method='TNC')
-        seterr(**default_err)
+        #seterr(**default_err)
+        if optval.fun > 1:
+            optval = minimize(toferr2func, [p0], args=tuple(params), bounds=[(mn, mx)], method='SLSQP')
+            if optval.fun > 1:
+                print("xx")
+                continue
+            print("{},{}".format(mn,mx))
+        
         minp.append(optval)
+    
+    minp = [optval for optval in minp if optval.success]
     
     if not len(minp):
         return None
     
     ## find the very best solution ##
+    #print(min(minp, key=lambda opt: opt.fun).fun)
     p = min(minp, key=lambda opt: opt.fun).x[0]
+    '''
     return getv1v2(p, r1vec, r2vec, params)
 
     

@@ -10,8 +10,8 @@ from mpl_toolkits.mplot3d import Axes3D
 toy = ksptools.loadsystem('ToySystem.cfg')
 
 _sun = toy['sun']
-_akep = toy['a'].getorbit().kepler
-_bkep = toy['b'].getorbit().kepler
+_akep = toy['a'].orbit.kepler
+_bkep = toy['b'].orbit.kepler
 _Ta = _akep.period()
 _Tb = _bkep.period()
 
@@ -35,14 +35,15 @@ bop = kerbol_sys['bop']
 pol = kerbol_sys['pol']
 eeloo = kerbol_sys['eeloo']
 
-def dohohmann(akep, bkep, u, dep, dt):
+def dohohmann(akep, bkep, u, dep, dt, minp):
     r1, v1 = akep.rv(dep)
     r2, v2 = bkep.rv(dep+dt)
     
-    vh1vh2 = hmn.planar_transfer(r1, r2, dt, u)
+    vh1vh2 = hmn.planar_transfer(r1, r2, dt, u, minp)
     if vh1vh2:
-        vh1, vh2 = vh1vh2
-        return ksporbit.KeplerOrbit.from_rvu(r1, vh1, u, dep), r1, vh1, r2, vh2
+        return vh1vh2
+        #vh1, vh2 = vh1vh2
+        #return ksporbit.KeplerOrbit.from_rvu(r1, vh1, u, dep), r1, vh1, r2, vh2
     else:
         return None
 
@@ -85,16 +86,16 @@ def printahohmann(akep, bkep, u, t0, dur):
     plt.show()
  
 
-def testhohmann(akep, bkep, u, t0min, t0max, dtmin, dtmax, trials):
+def testhohmann(akep, bkep, u, minp, t0min, t0max, dtmin, dtmax, trials):
     from itertools import product
-    from numpy import linspace
+    from numpy import linspace, empty
     t0 = linspace(t0min, t0max, trials)
     dt = linspace(dtmin, dtmax, trials)
     cpass = 0
     cfail = 0
     for s, d in product(t0, dt):
         #try:
-        r = dohohmann(akep, bkep, u, s, d)
+        r = dohohmann(akep, bkep, u, s, d, minp)
         #except Exception as e:
         #    print("{},{}".format(s,d))
         #    print(e)
@@ -102,14 +103,21 @@ def testhohmann(akep, bkep, u, t0min, t0max, dtmin, dtmax, trials):
             cfail += 1
         else:
             cpass += 1
+            #print("{},{}".format(s,d))
     print("{}% pass".format(float(cpass)/float(cpass+cfail)))
 
 #printahohmann(_akep, _bkep, _sun.std_g_param, 0., 0.125)
 
-kerbin_kepler = kerbin.getorbit().kepler
+kerbin_kepler = kerbin.orbit.kepler
+duna_kepler = duna.orbit.kepler
+
+start_time = float(0)
+end_time = float((3*426 + 1)*6*60*60)
+min_dur = float(151 * 6*60*60)
+max_dur = float(453 * 6*60*60)
 
 n = datetime.datetime.now()
-testhohmann(_akep, _bkep, _sun.std_g_param, 0., 100., 0.1, 10., 100)
+testhohmann(kerbin_kepler, duna_kepler, kerbol.std_g_param, kerbol.eq_radius, start_time, end_time-start_time, min_dur, max_dur, 100)
 print((datetime.datetime.now()-n).total_seconds())
 
 

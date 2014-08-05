@@ -15,9 +15,6 @@ class State(object):
     
     def asvectors(self):
         raise NotImplementedError
-    
-    def rv(self, t):
-        raise NotImplementedError
 
 
 class OrbitalState(State):
@@ -45,17 +42,12 @@ class VectorState(State):
         kep = orbit.KeplerOrbit.from_rvu(
                 self.velocity,
                 self.position,
-                self.refbody.std_g_param)
+                self.refbody.std_g_param,
+                self.epoch)
         return OrbitalState(self.refbody, kep, self.body, self.epoch)
 
     def asvectors(self):
         return self
-    
-    def rv(self, t):
-        from numpy import isclose
-        dt = t - epoch
-        if all(isclose([dt],[0.0])):
-            return self.position, self.velocity
 
 
 class FixedState(State):
@@ -82,11 +74,26 @@ class Body(object):
     def __hash__(self):
         return hash(self.keyname)
     
-    def getorbit(self):
+    @property
+    def orbit(self):
         return self.state.asorbit()
     
-    def getvectors(self):
-        return self.state.asvectors()
+    @property
+    def local_velocity(self):
+        return self.state.asvectors().velocity
+    
+    @property
+    def local_position(self):
+        return self.state.asposition().position
+    
+    @property
+    def global_position(self):
+        p = self.state.refbody
+        r = self.local_position
+        if p is not None:
+            return r + p.global_position
+        else:
+            return r
 
 
 class CelestialBody(Body):
@@ -127,7 +134,7 @@ class CelestialBody(Body):
     @classmethod
     def _orbit_from_config(cls, conf_parser, section, parent):
         if conf_parser.has_section(section):
-            return OrbitalState(None, orbit.KeplerOrbit.from_config(conf_parser, section, parent.std_g_param), parent)
+            return OrbitalState(parent, orbit.KeplerOrbit.from_config(conf_parser, section, parent.std_g_param), None)
         else:
             return FixedState()
     
