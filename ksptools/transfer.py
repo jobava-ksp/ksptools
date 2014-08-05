@@ -26,8 +26,8 @@ def solve_transfer(u, kep1, kep2, t0, t1, method='ballistic'):
         return slove_transfer_planar(TransferParameters(u, r1, v1, r2, v2, t0, t1, dta))
 
 def solve_transfer_planar(params, pick, toffunc, compute):
-    x = pick(params)
-    scipy.optimize.minimize(lambda i: abs(toffunc(i, params) - (t1 - t0)), [x])
+    x = pickv(params)
+    scipy.optimize.minimize(lambda i: abs(toffunc(i, params) - (t1 - t0)), x)
     return compute(x)
 
 def pickv(params):
