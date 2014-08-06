@@ -1,25 +1,28 @@
 from __future__ import division
+from numpy import array, sin, cos, mat, dot, cross, arccos, arcsin, pi
+from numpy.linalg import norm
+
+
+uniti = array([1.,0.,0.])
+unitj = array([0.,1.,0.])
+unitk = array([0.,0.,1.])
 
 def rotx(t):
-    from numpy import mat, sin, cos
     return mat([[1,       0,      0],
                  [0,  cos(t), sin(t)],
                  [0, -sin(t), cos(t)]])
 
 def roty(t):
-    from numpy import mat, sin, cos
     return mat([[cos(t), 0, -sin(t)],
                  [0,      1,       0],
                  [sin(t), 0,  cos(t)]])
 
 def rotz(t):
-    from numpy import mat, sin, cos
     return mat([[cos(t), -sin(t), 0],
                 [sin(t),  cos(t), 0],
                 [     0,       0, 1]])
 
 def rotvec(u,t):
-    from numpy import mat, sin, cos
     x,y,z = u
     ct, st, _ = cossin(t)
     return mat([[ct+x*x*(1-ct),   x*y*(1-ct)-z*st, x*z*(1-ct)+y*st],
@@ -27,21 +30,15 @@ def rotvec(u,t):
                 [z*x*(1-ct)-y*st, z*y*(1-ct)+x*st, ct+z*z*(1-ct)  ]])
 
 def cossin(t, dim=3):
-    from numpy import array, sin, cos
     return array([cos(t), sin(t)] + [0.]*(dim-2))
 
 def veccos(a,b):
-    from numpy import dot
-    from numpy.linalg import norm
     _a = dot(a,b)/(norm(a)*norm(b))
     #if norm(a)*norm(b) == 0:
     #    return 0.0
     return min(1.0, max(-1.0, _a))
 
-def vecsin(a,b,up=[0.,0.,1.]):
-    from numpy import array, cross, dot
-    from numpy.linalg import norm
-    up = array(up)
+def vecsin(a,b,up=unitk):
     if len(a) == 2:
         return veccos(array([-a[1], a[0]]), b)
     elif len(a) == 3:
@@ -52,7 +49,6 @@ def vecsin(a,b,up=[0.,0.,1.]):
             return norm(v)
 
 def arcvec(a,b):
-    from numpy import arcsin, arccos, pi
     cost = veccos(a,b)
     sint = vecsin(a,b)
     if sint >= 0.0:
@@ -61,23 +57,18 @@ def arcvec(a,b):
         return 2*pi - arccos(cost)
 
 def Ax(A,x):
-    from numpy import mat
     return (A*mat(x).T).A1
 
 def project(a,b):
-    from numpy import dot
     return b*(dot(a,b)/dot(b,b))
 
 def reject(a,b):
-    from numpy import dot
     return a - b*(dot(a,b)/dot(b,b))
     
 def unit(a):
-    from numpy.linalg import norm
     return a/norm(a)
 
 def projmat(*basis):
-    from numpy import mat
     return mat([unit(v) for v in basis])
 
 

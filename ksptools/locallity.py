@@ -2,14 +2,14 @@ from numpy import array, cos, sin, arctan
 from numpy.linalg import norm
 
 from . import orbit
-from .util import Ax, rotvec, unitz, unity, unitz
+from .util import Ax, rotvec, uniti, unitj, unitk
 
 class State(object):
     def __init__(self, refbody, body=None, epoch=0.):
         self.refbody = refbody
         self.body = body
         self.epoch = epoch
-        self.up = unitz #TODO: more generalized body orientation
+        self.up = unitk #TODO: more generalized body orientation
     
     def asorbit(self):
         raise NotImplementedError
@@ -66,7 +66,7 @@ class VectorState(State):
             lon = 2*pi - lon
         
         # rotate velocity
-        Av = rotvec(unity, -lat)
+        Av = rotvec(unitj, -lat)
         v = Ax(Av*Ar, self.velocity)
         
         return GeocentricState(self.refbody, lon, lat, alt, v, self.body, self.epoch)
@@ -77,7 +77,7 @@ class VectorState(State):
 
 class GeocentricState(State):
     def __init__(self, refbody, longitude, latitude, altitude, velocity, body=None, epoch=0.):
-        State.__init__(self, refbody, body, epoch):
+        State.__init__(self, refbody, body, epoch)
         self.longitude = longitude
         self.latitude = latitude
         self.altitude = altitude
@@ -97,7 +97,7 @@ class GeocentricState(State):
         up = self.refbody.state.up
         t = (2*pi/(self.refbody.sidereal_rate)) * self.epoch
         Ar = rotvec(u,t)
-        Av = rotvec(unity,self.latitude)
+        Av = rotvec(unitj,self.latitude)
         
         return VectorState(self.refbody, Ax(Ar, fixed), Ax(Ar*Av, v), self.body, self.epoch)
     

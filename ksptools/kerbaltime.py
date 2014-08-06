@@ -38,12 +38,12 @@ class KerbalTime(object):
     
     @classmethod
     def from_ydhms(cls, years, days=0., hours=0., minutes=0., seconds=0.):
-        return sum([
+        return cls(sum([
                 years * cls.seconds_per_year,
                 days * cls.seconds_per_day,
                 hours * cls.seconds_per_hour,
                 minutes * cls.seconds_per_minute,
-                seconds])
+                seconds]))
     
     def __add__(self, other):
         return KerbalTime(self.total_seconds + other.total_seconds)
@@ -53,7 +53,7 @@ class KerbalTime(object):
     
     
 class KerbalDate(KerbalTime):
-    def __init__(self, timexpr):
+    def __init__(self, timeexpr):
         if isinstance(timeexpr, str):
             raise NotImplementedError
         elif isinstance(timeexpr, KerbalTime):

@@ -1,19 +1,18 @@
-import datetime
 import ksptools
 import ksptools.util as kspu
 import ksptools.orbit as ksporbit
-import hohmann as hmn
-import matplotlib.pyplot as plt
-import pprint
-from mpl_toolkits.mplot3d import Axes3D
+import ksptools.transfer as ksptransfer
+import ksptools.kerbaltime as ksptime
 
-toy = ksptools.loadsystem('ToySystem.cfg')
+import numpy.linalg as la
 
-_sun = toy['sun']
-_akep = toy['a'].orbit.kepler
-_bkep = toy['b'].orbit.kepler
-_Ta = _akep.period()
-_Tb = _bkep.period()
+#toy = ksptools.loadsystem('ToySystem.cfg')
+
+#_sun = toy['sun']
+#_akep = toy['a'].orbit.kepler
+#_bkep = toy['b'].orbit.kepler
+#_Ta = _akep.period()
+#_Tb = _bkep.period()
 
 
 kerbol_sys = ksptools.loadsystem('KerbolSystem.cfg')
@@ -35,91 +34,18 @@ bop = kerbol_sys['bop']
 pol = kerbol_sys['pol']
 eeloo = kerbol_sys['eeloo']
 
-def dohohmann(akep, bkep, u, dep, dt, minp):
-    r1, v1 = akep.rv(dep)
-    r2, v2 = bkep.rv(dep+dt)
-    
-    vh1vh2 = hmn.planar_transfer(r1, r2, dt, u, minp)
-    if vh1vh2:
-        return vh1vh2
-        #vh1, vh2 = vh1vh2
-        #return ksporbit.KeplerOrbit.from_rvu(r1, vh1, u, dep), r1, vh1, r2, vh2
-    else:
-        return None
 
+u = kerbol.std_g_param
 
-def printahohmann(akep, bkep, u, t0, dur):
-    from numpy import dot, array, linspace, pi
-    from numpy.linalg import norm
-    hkep, re, ve, ri, vi = dohohmann(akep, bkep, u, t0, dur)
-    
-    r = norm(re)
-    v = norm(ve)
-    evec = (1./u)*((v**2-u/r)*re-dot(re,ve)*ve)
-    nvec = evec
-    
-    fg = plt.figure()
-    ax = fg.add_subplot(111)
-    
-    r1, v1 = akep.rv(t0)
-    r2, v2 = bkep.rv(t0+dur)
-    
-    ax.plot([0],[0],'s')
-    kspu.plot_semi_orbit(akep, t0, t0+dur, ax)
-    kspu.plot_semi_orbit(bkep, t0, t0+dur, ax)
-    kspu.plot_semi_orbit(hkep, t0-30*dur, t0+30*dur, ax)
-    #kspu.plot_rv3d(re, ve, ax)
-    #kspu.plot_rv3d(re, v1, ax)
-    #kspu.plot_rv3d(ri, vi, ax)
-    #kspu.plot_rv3d(ri, v2, ax)
-    #kspu.plot_rv3d([0,0,0],evec, ax)
-    #kspu.plot_rv3d([0,0,0],nvec, ax)
-    #prange = linspace(0., 1., 16., False)
-    #for i in prange:
-    #    r, v = hkep.rv(i*hkep.period()+t0)
-    #    kspu.plot_rv(r,v,ax)
-    
-    pex, pey, _ = hkep.pe()
-    pprint.pprint(vars(hkep))
-    ax.plot([pex],[pey],'s')
-    ax.axis('equal')
-    plt.show()
- 
+time_start = ksptime.KerbalDate.from_ydhms(1., 14.)
+time_end = ksptime.KerbalDate.from_ydhms(1., 366)
 
-def testhohmann(akep, bkep, u, minp, t0min, t0max, dtmin, dtmax, trials):
-    from itertools import product
-    from numpy import linspace, empty
-    t0 = linspace(t0min, t0max, trials)
-    dt = linspace(dtmin, dtmax, trials)
-    cpass = 0
-    cfail = 0
-    for s, d in product(t0, dt):
-        #try:
-        r = dohohmann(akep, bkep, u, s, d, minp)
-        #except Exception as e:
-        #    print("{},{}".format(s,d))
-        #    print(e)
-        if r is None:
-            cfail += 1
-        else:
-            cpass += 1
-            #print("{},{}".format(s,d))
-    print("{}% pass".format(float(cpass)/float(cpass+cfail)))
+time_start_sec = time_start.total_seconds
+time_end_sec = time_end.total_seconds
 
-#printahohmann(_akep, _bkep, _sun.std_g_param, 0., 0.125)
+ve, vi = ksptransfer.solve_transfer(u, kerbin.orbit, duna.orbit, time_start_sec, time_end_sec)
+vk, vd = kerbin.orbit.v(time_start_sec), duna.orbit.v(time_end_sec)
 
-kerbin_kepler = kerbin.orbit.kepler
-duna_kepler = duna.orbit.kepler
-
-start_time = float(0)
-end_time = float((3*426 + 1)*6*60*60)
-min_dur = float(151 * 6*60*60)
-max_dur = float(453 * 6*60*60)
-
-n = datetime.datetime.now()
-testhohmann(kerbin_kepler, duna_kepler, kerbol.std_g_param, kerbol.eq_radius, start_time, end_time-start_time, min_dur, max_dur, 100)
-print((datetime.datetime.now()-n).total_seconds())
-
-
-
+print(la.norm(ve - vk))
+print(la.norm(vi - vd))
 

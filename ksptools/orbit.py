@@ -107,7 +107,7 @@ class KeplerOrbit(object):
         return self.orientation * rad
     
     def normal(self):
-        return self.orientation * unitk)
+        return self.orientation * unitk
     
     def r(self, t, theta=None):
         from .util import cossin
