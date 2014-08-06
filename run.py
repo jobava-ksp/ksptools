@@ -46,6 +46,38 @@ time_end_sec = time_end.total_seconds
 ve, vi = ksptransfer.solve_transfer(u, kerbin.orbit, duna.orbit, time_start_sec, time_end_sec)
 vk, vd = kerbin.orbit.v(time_start_sec), duna.orbit.v(time_end_sec)
 
-print(la.norm(ve - vk))
-print(la.norm(vi - vd))
+
+print(vk)
+print(ve)
+print(vd)
+print(vi)
+
+
+dunar, dunav = duna.orbit.rv(time_end_sec)
+kerbinr, kerbinv = kerbin.orbit.rv(time_start_sec)
+
+solver = ksptransfer.SemiLatisSolver()
+params = ksptransfer.TransferParameters(
+        u,
+        kerbinr,
+        kerbinv,
+        dunar,
+        dunav,
+        time_start_sec,
+        time_end_sec,
+        kspu.arcvec(kerbinr, dunar))
+
+solver.start(params)
+
+mn = solver.minp
+mx = solver.maxp
+
+#print("{}-{}".format(mn,mx))
+
+func = lambda p: solver.tof(p, params)
+#func = lambda p: (solver.tof(p, params) - (params.t1-params.t0))**2
+#kspu.plotfunc(func, max(mn,1), min(mx,10e+14))
+kspu.plotfunc(func, max(mn,7e+9), min(mx,1e+10))
+
+
 

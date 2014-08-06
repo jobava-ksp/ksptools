@@ -22,7 +22,7 @@ def solve_transfer(u, kep1, kep2, t0, t1, method='ballistic'):
     
     if method == 'ballistic':
         dta = arcvec(r1, r2)
-        return solve_transfer_planar(TransferParameters(u, r1, v1, r2, v2, t0, t1, dta), SemiLatusSolver())
+        return solve_transfer_planar(TransferParameters(u, r1, v1, r2, v2, t0, t1, dta), SemiLatisSolver())
 
 def solve_transfer_planar(params, solver):
     x = solver.start(params)
@@ -32,7 +32,6 @@ def solve_transfer_planar(params, solver):
     fp = lambda i: 2*(solver.tof(i, params) - (t1 - t0))*solver.tofprime(i, params)
     
     p = scipy.optimize.minimize(f, x, jac=fp, method='TNC')
-    print(p)
     return solver.solution(p.x[0], params)
 
 
@@ -40,13 +39,12 @@ class TransferSolver(object):
     pass
 
 
-class SemiLatusSolver(TransferSolver):
+class SemiLatisSolver(TransferSolver):
     def start(self, params):
         cosdt, sindt, _ = cossin(params.dta)
         self.cosdt = cosdt
         self.sindt = sindt
         self.theta = params.dta
-        print(self.theta)
         
         r1, r2 = norm(params.r1), norm(params.r2)
         self.k = r1*r2*(1-cosdt)
@@ -93,9 +91,8 @@ class SemiLatusSolver(TransferSolver):
             F = arccosh(coshF)
             return g + sqrt((-a)**3/params.u)*(sinh(F)-F)
         else:
-            print(vars(self))
-            print("{},{}".format(a,p))
             raise NotImplementedError
+            #return None
         
     def solution(self, p, params):
         r1, r2 = norm(params.r1), norm(params.r2)
@@ -107,8 +104,8 @@ class SemiLatusSolver(TransferSolver):
         fp = sqrt(params.u/p)*tan(self.theta/2)*((1-cosdt)/p - 1/r1 - 1/r2)
         gp = 1 - r1*(1-cosdt)/p
         
-        v1 = (r2 - f*r1)/g
-        v2 = fp*r1 + gp*v1
+        v1 = (rv2 - f*rv1)/g
+        v2 = fp*rv1 + gp*v1
         
         return v1, v2
     
