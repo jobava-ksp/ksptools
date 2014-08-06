@@ -3,57 +3,7 @@ import re
 from . import orbit
 from . import atmosphere
 
-
-class State(object):
-    def __init__(self, refbody, body=None, epoch=0.):
-        self.refbody = refbody
-        self.body = body
-        self.epoch = epoch
-    
-    def asorbit(self):
-        raise NotImplementedError
-    
-    def asvectors(self):
-        raise NotImplementedError
-
-
-class OrbitalState(State):
-    def __init__(self, refbody, kepler, body=None, epoch=0.):
-        State.__init__(self, refbody, body, epoch)
-        self.kepler = kepler
-        self.rv = self.kepler.rv
-        self.period = self.kepler.period
-    
-    def asorbit(self):
-        return self
-    
-    def asvectors(self):
-        r, v = self.kepler.rv(self.epoch)
-        return VectorState(self.refbody, r, v, self.body, self.epoch)
-
-
-class VectorState(State):
-    def __init__(self, refbody, r, v, body=None, epoch=0.):
-        State.__init__(self, refbody, body, epoch)
-        self.velocity = v
-        self.position = r
-    
-    def asorbit(self):
-        kep = orbit.KeplerOrbit.from_rvu(
-                self.velocity,
-                self.position,
-                self.refbody.std_g_param,
-                self.epoch)
-        return OrbitalState(self.refbody, kep, self.body, self.epoch)
-
-    def asvectors(self):
-        return self
-
-
-class FixedState(State):
-    def __init__(self, refbody=None, body=None, epoch=0.):
-        State.__init__(self, refbody, body, epoch)
-
+from .locallity import OrbitalState, FixedState
 
 class Body(object):
     def __init__(self, keyname, name, state, mass=None, u=None):
@@ -76,10 +26,10 @@ class Body(object):
     
     @property
     def orbit(self):
-        return self.state.asorbit()
+        return self.state.asorbit().kepler
     
     @property
-    def local_velocity(self):
+    def velocity(self):
         return self.state.asvectors().velocity
     
     @property

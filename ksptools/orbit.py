@@ -5,148 +5,8 @@ from numpy import cos, sin, tan, arcsin, arccos, arctan
 from numpy import cosh, sinh, tanh, arccosh, arcsinh, arctanh
 from numpy.linalg import norm
 from scipy.optimize import newton
-from .util import EulerAngle, veccos, vecsin, cossin, Ax, rotz
+from .util import EulerAngle, veccos, vecsin, cossin, Ax, rotz, uniti, unitj, unitk
 
-zeropos = array([1.,0.,0.,])
-
-def isnotNone(*args):
-    return all(x is not None for x in args)
-
-def spec_energy(u,r=None,a=None,e=None,v=None):
-    # 1. u, v, r
-    if isnotNone(u, v, r):
-        return dot(v,v)/2 - u/norm(r)
-    
-    # 2. u, h, e
-    if isnotNone(u, h, e):
-        return -(u**2/(2*h**2))*(1-e**2)
-    
-    # 3. a, u
-    if isnotNone(u, a):
-        return -u/2*a
-    
-    return NotImplementedError
-
-def spec_angular_momentum(r, v):
-    return norm(cross(r, v))
-
-def semi_major_axis(u,r=None,v=None,se=None):
-    if isnotNone(u,r,v):
-        return norm(r)*u/(2*u-norm(r)*dot(v,v))
-    if isnotNone(u,sec):
-        return -u/(2*sec)
-        
-    return NotImplementedError
-
-def eccentricity(u, se=None, sam=None, r=None, v=None, a=None):
-    # a. a, u
-    if isnotNone(a,u):
-        se = -u/2*a
-    
-    # 1. se, sam
-    if isnotNone(se, sam):
-        return sqrt(1+(2*se*sam**2)/u**2)
-    
-    # 2. se, r, v (r and v must be vectors)
-    if isnotNone(se, r, v):
-        return sqrt(1+(2*norm(cross(r, v))**2)/u**2)
-    
-    return NotImplementedError
-
-def true_anomaly(a=None,e=None,r=None,E=None,F=None,dt=None,mm=None):
-    # 1. a, e, r
-    if isnotNone(a,e,r):
-        if e != 1. and e > 0.0:
-            ta = arccos((a*(1-e**2)-norm(r))/(norm(r)*e))
-        elif e == 0.
-            ta = veccos(r,array([1.,0.,0.]))
-        if e < 1. and ta < 0.:
-            ta = 2*pi - ta
-        return ta
-    
-    # 2. e, E
-    if isnotNone(e,E):
-        return 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
-    
-    # 3. e, F
-    if isnotNone(e,F):
-        ta = arccos((e-cosh(F))/(e*cosh(F)-1))
-        if F < 0:
-            return -ta
-        else:
-            return ta
-    
-    return NotImplementedError
-
-def eccentric_anomaly(e, ta=None, dt=None, M0=None, mm=None, a=None, u=None, r=None):
-    # a. a, u
-    if isnotNone(a,u):
-        if a > 0:
-            mm = sqrt(a**3/u)
-        elif a < 0:
-            mm = sqrt((-a)**3/u)
-        else:
-            raise NotImplementedError
-    
-    # b. a, e, r
-    if isnotNone(a,e,r):
-        ta = true_anomaly(a, e, r)
-    
-    # 2. e, ta
-    if isnotNone(e,ta):
-        if e == 0:
-            return ta
-        elif e < 1:
-            E = arccos((e+cos(ta))/(1+e*cos(ta)))
-            if E < 0:
-                E = 2*pi - E
-            return E
-        elif e > 1:
-            F = arccosh((e+cos(ta))/(1+e*cos(ta)))
-            return F
-    
-    # 3. e, dt, M0, mm
-    if isnotNone(e,dt,M0,mm):
-        M = M0 + mm*dt
-        if e < 1:
-            f = lambda nE: nE - e*sin(nE) - M
-            fp = lambda nE: 1 - e*cos(nE)
-            fp2 = lambda nE: e*sin(nE)
-        elif e > 1:
-            f = lambda nF: e*sinh(nF) - nF - M
-            fp = lambda nF: e*cosh(nF) - 1
-            fp2 = lambda nF: e*sinh(nF)
-        else:
-            raise NotImplementedError
-        return newton(f,0,fp,fprime2=fp2)
-
-    return NotImplementedError
-
-def time_from_pe(u=None, a=None, e=None, EF=None, mm=None, ta=None, r=None):
-    # a. a, e, r
-    if isnotNone(a,e,r):
-        ta = true_anomaly(a=a,r=r,e=e)
-    
-    # b. u, a
-    if isnotNone(u,a):
-        if a > 0:
-            mm = sqrt(a**3/u)
-        elif a < 0:
-            mm = sqrt((-a)**3/u)
-    
-    # b. ta, e
-    if isnotNone(ta, e):
-        EF = eccentric_anomally(e=e, ta=ta)
-    
-    # 1. EF, e, mm
-    if isnotNone(EF,e,m):
-        if e < 1:
-            return (EF - e*sin(EF))*mm
-        elif e > 1:
-            return (e*sinh(EF) - EF)*mm
-    
-    return NotImplementedError
-    
 
 class KeplerOrbit(object):
     def __init__(self, u, a, e, inc, lon_asc, arg_pe, M, epoch=0.):
@@ -168,18 +28,16 @@ class KeplerOrbit(object):
         return cls(u, a, e, i, lon_asc, arg_pe, M, epoch)
     
     @classmethod
-    def from_rvu(cls, rvec, velvec, u, epoch=0.):
-        r = norm(rvec)
-        v = norm(velvec)
-        evec = (1./u)*((v**2-u/r)*rvec-dot(rvec,velvec)*velvec)
+    def from_rvu(cls, r, v, u, epoch=0.):
+        evec = (1./u)*((dot(v,v)-u/norm(r))*r-dot(r,v)*v)
         e = norm(evec)
-        a = 1/(2/r-v**2/u)
+        a = 1/(2/norm(r)-dot(v,v)/u)
         p = a*(1-e**2)
         
-        h = cross(rvec,velvec)
+        h = cross(r, v)
         i = arccos(h[2]/norm(h))
          
-        n = cross(array([0.,0.,1.]), h)
+        n = cross(unitk, h)
         if norm(n) == 0:
             n = evec
         
@@ -189,14 +47,14 @@ class KeplerOrbit(object):
         argpe = arccos(veccos(n,evec))
         if evec[2] < 0: argpe = 2*pi - argpe
         
-        costa = veccos(evec, rvec)
+        costa = veccos(evec, r)
         if a > 0:
             E = arccos((e+costa)/(1+e*costa))
             M = E - e*sin(E)
         elif a < 0:
             F = arccosh((e+costa)/(1+e*costa))
             M = e*sinh(F) - F
-        if dot(rvec, velvec) < 0: M = 2*pi - M
+        if dot(r, v) < 0: M = 2*pi - M
         
         return cls(u, a, e, i, la, argpe, M, epoch)
 
@@ -233,9 +91,6 @@ class KeplerOrbit(object):
                 return ta
         raise Exception("Peribolic orbits are not supported")
     
-    def time_at_true_anom(self, theta):
-        raise NotImplementedError
-    
     def prograde(self, t, theta=None):
         e = self.eccentricity
         if theta is None:
@@ -248,11 +103,11 @@ class KeplerOrbit(object):
         if theta is None:
             theta = self.true_anom(t)
         ct, st, _ = cossin(theta)
-        rad = Ax(rotz(self.flightvec(t, theta)), array([-1., 0., 0.]))
+        rad = Ax(rotz(self.flightvec(t, theta)), -uniti)
         return self.orientation * rad
     
     def normal(self):
-        return self.orientation * array([0.,0.,1.])
+        return self.orientation * unitk)
     
     def r(self, t, theta=None):
         from .util import cossin
@@ -266,7 +121,7 @@ class KeplerOrbit(object):
     def pe(self):
         p = self.semi_latus_rectum
         e = self.eccentricity
-        return self.orientation * ((array([1.,0.,0.]))*p/(1+e))
+        return self.orientation * (uniti*p/(1+e))
     
     def v(self, t, theta=None):
         p,e,a,u = self.semi_latus_rectum, self.eccentricity, self.semi_major_axis, self.GM
