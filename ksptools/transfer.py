@@ -77,13 +77,13 @@ class SemiLatisSolver(TransferSolver):
         gp = 1 - r1*(1-cosdt)/p
         
         m, k, l = self.m, self.k, self.l
-        a = m*k*p/((2*m-l**2)*p**2+2*k*l*p-k**2)
+        a = m*k*p/((2*m-l**2)*p**2 + 2*k*l*p - k**2)
         
         if a > 0:
             cosE = 1 - r1*(1-f)/a
             sinE = -r1*r2*fp/sqrt(params.u*a)
             E = arccos(cosE)
-            if sinE < 0:
+            if E < 0:
                 E = 2*pi - E
             return g + sqrt(a**3/params.u)*(E-cosE)
         elif a < 0:

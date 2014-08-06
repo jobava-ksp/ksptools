@@ -47,10 +47,7 @@ ve, vi = ksptransfer.solve_transfer(u, kerbin.orbit, duna.orbit, time_start_sec,
 vk, vd = kerbin.orbit.v(time_start_sec), duna.orbit.v(time_end_sec)
 
 
-print(vk)
-print(ve)
-print(vd)
-print(vi)
+print("<{} - {}>".format(la.norm(ve-vk), la.norm(vd-vi)))
 
 
 dunar, dunav = duna.orbit.rv(time_end_sec)
