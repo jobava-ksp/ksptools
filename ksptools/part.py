@@ -31,9 +31,9 @@ class ResourceSink(object):
         return res
     
     @staticmethod
-    def sinksource(sink, source):
-        sink.sources.append(source)
-        source.sinks.append(sink)
+    def link(sink, source):
+        sink.sources.add(source)
+        source.sinks.add(sink)
 
 
 class PartType(object):
@@ -50,6 +50,9 @@ class PartType(object):
 class Part(object):
     def __init__(self, parttype):
         self.parttype = parttype
+    
+    def __eq__(self, other):
+        
 
 
 class EnginePartType(PartType):
@@ -62,7 +65,7 @@ class EnginePartType(PartType):
         self.ffvac = ff
         self.ffatm = ffatm
         self.ispscale = ispatm - isp
-        self.sinks = []
+        self.sources = set()
     
     def isp(self, atm=0.):
         return self.ispvac + self.ispscale*max(0, min(1, atm))
@@ -85,14 +88,15 @@ class FueledEnginePartType(EnginePartType):
         self.ff = ff
         self.ffatm = ffatm
         self.ispscale = ispatm - isp
-        self.sources = []
-        self.sinks = []
+        self.sources = set()
+        self.sinks = set()
 
 
 class FuelTankPartType(PartType):
     def __init__(self, name, title, cost, drymass, wetmass, coefdrag, resourcetype):
         res = ResourceSink(resourcetype, wetmass - drymass)
         PartType.__init__(self, name, ['source'], title, drymass, coefdrag, [res])
+        self.sinks = set()
 
 
 class ChutePartType(PartType):
