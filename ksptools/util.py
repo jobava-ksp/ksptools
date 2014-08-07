@@ -113,39 +113,40 @@ def plotfunc(f, x0, x1, ax=None):
         ax.plot(x,y)
 
 
-def plot_semi_orbit(kep, t0, t1, ax=None):
+def plot_semi_orbit(kep, t0, t1, ax):
     from numpy import linspace
-    import matplotlib.pyplot as plt
+    #import matplotlib.pyplot as plt
     
     t = linspace(t0,t1,600)
     r = [kep.r(i) for i in t]
     x, y, z = zip(*r)
+    
     if ax is None:
-        plotter = plt
+        plt.plot(x,y)
     else:
-        plotter = ax
-    plotter.plot(x,y)
+        ax.plot(x,y)
 
 def plot_semi_orbit3d(kep, t0, t1, ax):
     from numpy import linspace
-    import matplotlib.pyplot as plt
+    #import matplotlib.pyplot as plt
     
     t = linspace(t0,t1,600)
     r = [kep.r(i) for i in t]
     x, y, z = zip(*r)
     ax.plot(x,y,z)
 
-def plot_rv(r, v, ax=None, scale=1.):
+def plot_rv(r, v, ax, scale=1.):
     from numpy import linspace
-    import matplotlib.pyplot as plt
+    #import matplotlib.pyplot as plt
     
-    if ax is None:
-        plotter = plt
-    else:
-        plotter = ax
     rv = (r, r+scale*v)
     x, y, z = zip(*rv)
-    plotter.plot(x,y)
+    
+    if ax is None:
+        plt.plot(x,y)
+    else:
+        ax.plot(x,y)
+    
 
 def plot_rv3d(r, v, ax, scale=1.):
     from numpy import linspace

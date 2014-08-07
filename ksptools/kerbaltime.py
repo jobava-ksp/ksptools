@@ -1,6 +1,9 @@
 import datetime
 import re
 
+def toseconds(*args):
+    return KerbalTime.from_ydhms(*args).total_seconds
+
 class KerbalTime(object):
     
     seconds_per_year = 9203545.0
