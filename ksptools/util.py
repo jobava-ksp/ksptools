@@ -1,5 +1,5 @@
 from __future__ import division
-from numpy import array, sin, cos, mat, dot, cross, arccos, arcsin, pi
+from numpy import array, sin, cos, mat, dot, cross, arccos, arcsin, arctan2, pi
 from numpy.linalg import norm
 
 
@@ -51,10 +51,10 @@ def vecsin(a,b,up=unitk):
 def arcvec(a,b):
     cost = veccos(a,b)
     sint = vecsin(a,b)
-    if sint >= 0.0:
-        return arccos(cost)
-    else:
-        return 2*pi - arccos(cost)
+    t = arctan2(sint, cost)
+    if t < 0:
+        t = 2*pi + t
+    return t
 
 def Ax(A,x):
     return (A*mat(x).T).A1
@@ -143,7 +143,7 @@ def plot_rv(r, v, ax=None, scale=1.):
         plotter = plt
     else:
         plotter = ax
-    rv = (r, r+v)
+    rv = (r, r+scale*v)
     x, y, z = zip(*rv)
     plotter.plot(x,y)
 

@@ -3,7 +3,7 @@ from __future__ import print_function, division
 import collections
 import scipy.optimize
 
-from numpy import sqrt, dot, cos, sin, arccos, pi, arccosh, sinh, tan, spacing
+from numpy import sqrt, dot, cos, sin, arccos, arcsin, pi, arccosh, sinh, tan, spacing, arctan, arctan2
 from numpy.linalg import norm
 from .util import arcvec, cossin
 
@@ -32,6 +32,7 @@ def solve_transfer_planar(params, solver):
     fp = lambda i: 2*(solver.tof(i, params) - (t1 - t0))*solver.tofprime(i, params)
     
     p = scipy.optimize.minimize(f, x, jac=fp, method='TNC')
+    print(p)
     return solver.solution(p.x[0], params)
 
 
@@ -51,22 +52,23 @@ class SemiLatisSolver(TransferSolver):
         self.m = r1*r2*(1+cosdt)
         self.l = r1 + r2
         
-        if sindt > 0:
-            self.theta = 2*pi - self.theta
-        
         p_i = self.k/(self.l + sqrt(2*self.m))
         p_ii = self.k/(self.l - sqrt(2*self.m))
         
         if self.theta < pi:
             self.minp = p_i
             self.maxp = float('inf')
-            return max((r1+r2)/2, p_i)
+            return p_i*3
         elif self.theta > pi:
             self.minp = 0
             self.maxp = p_ii
             return p_ii/2
+        else:
+            raise Exception
     
     def tof(self, p, params):
+        assert(p >= self.minp)
+        assert(p <= self.maxp)
         p = norm(p)
         r1, r2 = norm(params.r1), norm(params.r2)
         cosdt, sindt = self.cosdt, self.sindt
@@ -82,17 +84,19 @@ class SemiLatisSolver(TransferSolver):
         if a > 0:
             cosE = 1 - r1*(1-f)/a
             sinE = -r1*r2*fp/sqrt(params.u*a)
-            E = arccos(cosE)
-            if E < 0:
-                E = 2*pi - E
-            return g + sqrt(a**3/params.u)*(E-cosE)
+            E = arctan(sinE/cosE)
+            #E = arccos(cosE)
+            #if E < 0:
+            #   E = 2*pi + E
+            #assert(E >= 0)
+            return g + sqrt(a**3/params.u)*(E-sinE)
         elif a < 0:
             coshF = 1 - r1*(1-f)/a
             F = arccosh(coshF)
             return g + sqrt((-a)**3/params.u)*(sinh(F)-F)
         else:
-            raise NotImplementedError
-            #return None
+            print(a)
+            raise NotImplementedError 
         
     def solution(self, p, params):
         r1, r2 = norm(params.r1), norm(params.r2)
@@ -102,7 +106,7 @@ class SemiLatisSolver(TransferSolver):
         f = 1 - r2*(1-cosdt)/p
         g = r1*r2*sindt/sqrt(params.u*p)
         fp = sqrt(params.u/p)*tan(self.theta/2)*((1-cosdt)/p - 1/r1 - 1/r2)
-        gp = 1 - r1*(1-cosdt)/p
+        gp = 1 - r2*(1-cosdt)/p
         
         v1 = (rv2 - f*rv1)/g
         v2 = fp*rv1 + gp*v1
@@ -112,5 +116,5 @@ class SemiLatisSolver(TransferSolver):
     def tofprime(self, p, params):
         #n = 3
         #eps = spacing(n*p)
-        return scipy.optimize.approx_fprime(p, lambda i: self.tof(i, params), 1)
+        return scipy.optimize.approx_fprime(p, lambda i: self.tof(i, params), 1e-3)
         

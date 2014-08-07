@@ -18,10 +18,10 @@ class KeplerOrbit(object):
         self.orientation = EulerAngle.from_pts(lon_asc, inc, arg_pe)
         if a > 0:
             self.mean_motion = sqrt(u/self.semi_major_axis**3)
-            self.mean_anomally = M
+            self.mean_anomaly = M
         elif a < 0:
             self.mean_motion = sqrt(u/(-self.semi_major_axis)**3)
-            self.mean_anomally = M
+            self.mean_anomaly = M
      
     @classmethod
     def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch=0.):
@@ -29,9 +29,9 @@ class KeplerOrbit(object):
     
     @classmethod
     def from_rvu(cls, r, v, u, epoch=0.):
-        evec = (1./u)*((dot(v,v)-u/norm(r))*r-dot(r,v)*v)
+        evec = (1./u)*((norm(v)**2-u/norm(r))*r-dot(r,v)*v)
         e = norm(evec)
-        a = 1/(2/norm(r)-dot(v,v)/u)
+        a = 1/(2/norm(r)-norm(v)**2/u)
         p = a*(1-e**2)
         
         h = cross(r, v)
@@ -60,7 +60,7 @@ class KeplerOrbit(object):
 
     def E_anom(self, t):
         t -= self.epoch
-        M = self.mean_anomally + (self.mean_motion * t)
+        M = self.mean_anomaly + (self.mean_motion * t)
         e = self.eccentricity
         f = lambda nE: nE - e*sin(nE) - M
         fp = lambda nE: 1 - e*cos(nE)
@@ -69,11 +69,11 @@ class KeplerOrbit(object):
     
     def F_anom(self, t):
         t -= self.epoch
-        M = self.mean_anomally + (self.mean_motion * t)
+        M = self.mean_anomaly + (self.mean_motion * t)
         e = self.eccentricity
         f = lambda nF: e*sinh(nF) - nF - M
         fp = lambda nF: e*cosh(nF) - 1
-        fp2 = lambda nF: e*sinh(nF)
+        fp2 = lambda nF: -e*sinh(nF)
         return newton(f,0,fp,fprime2=fp2)
     
     def true_anom(self, t):
@@ -81,7 +81,8 @@ class KeplerOrbit(object):
         a = self.semi_major_axis
         if a > 0:
             E = self.E_anom(t)
-            return 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
+            ta = 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
+            return ta
         elif a < 0 and e != 1:
             F = self.F_anom(t)
             ta = arccos((e-cosh(F))/(e*cosh(F)-1))
