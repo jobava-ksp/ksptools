@@ -85,7 +85,7 @@ class SemiLatisSolver(TransferSolver):
             sinE = -r1*r2*fp/sqrt(params.u*a)
             #E = arctan(sinE/cosE)
             #E = arcsin(cosE)
-            _a = min(1.0, max(-1.0, arccos(cosE)))
+            _a = min(1.0, max(-1.0, cosE))
             E = arccos(_a)
             if sinE < 0:
                E = 2*pi - E
