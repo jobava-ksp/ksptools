@@ -18,10 +18,10 @@ class KeplerOrbit(object):
         self.orientation = EulerAngle.from_pts(lon_asc, inc, arg_pe)
         if a > 0:
             self.mean_motion = sqrt(u/self.semi_major_axis**3)
-            self.mean_anomaly = M
+            self.M0 = M
         elif a < 0:
             self.mean_motion = sqrt(u/(-self.semi_major_axis)**3)
-            self.mean_anomaly = M
+            self.M0 = M
      
     @classmethod
     def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch=0.):
@@ -58,33 +58,34 @@ class KeplerOrbit(object):
         
         return cls(u, a, e, i, la, argpe, M, epoch)
 
-    def E_anom(self, t):
-        t -= self.epoch
-        M = self.mean_anomaly + (self.mean_motion * t)
+    def mean_anomaly(self, t):
+        return self.M0 + self.mean_motion * (t - self.epoch)
+    
+    def eccentric_anomaly(self, t):
+        M = self.mean_anomaly(t)
         e = self.eccentricity
         f = lambda nE: nE - e*sin(nE) - M
         fp = lambda nE: 1 - e*cos(nE)
         fp2 = lambda nE: e*sin(nE)
         return newton(f,0,fp,fprime2=fp2)
     
-    def F_anom(self, t):
-        t -= self.epoch
-        M = self.mean_anomaly + (self.mean_motion * t)
+    def hyperbolic_eccentric_anomaly(self, t):
+        M = self.mean_anomaly(t)
         e = self.eccentricity
         f = lambda nF: e*sinh(nF) - nF - M
         fp = lambda nF: e*cosh(nF) - 1
         fp2 = lambda nF: -e*sinh(nF)
         return newton(f,0,fp,fprime2=fp2)
     
-    def true_anom(self, t):
+    def true_anomaly(self, t):
         e = self.eccentricity
         a = self.semi_major_axis
         if a > 0:
-            E = self.E_anom(t)
+            E = self.eccentric_anomaly(t)
             ta = 2*arctan(sqrt((1.+e)/(1.-e))*tan(E/2.))
             return ta
         elif a < 0 and e != 1:
-            F = self.F_anom(t)
+            F = self.hyperbolic_eccentric_anomaly(t)
             ta = arccos((e-cosh(F))/(e*cosh(F)-1))
             if F < 0:
                 return -ta
@@ -95,14 +96,14 @@ class KeplerOrbit(object):
     def prograde(self, t, theta=None):
         e = self.eccentricity
         if theta is None:
-            theta = self.true_anom(t)
+            theta = self.true_anomaly(t)
         ct, st, _ = cossin(theta)
         return self.orientation * array([-st, e+ct, 0])
     
     def radialin(self, t, theta=None):
         e = self.eccentricity
         if theta is None:
-            theta = self.true_anom(t)
+            theta = self.true_anomaly(t)
         ct, st, _ = cossin(theta)
         rad = Ax(rotz(self.flightvec(t, theta)), -uniti)
         return self.orientation * rad
@@ -110,24 +111,40 @@ class KeplerOrbit(object):
     def normal(self):
         return self.orientation * unitk
     
-    def r(self, t, theta=None):
-        from .util import cossin
-        from numpy import cos
-        p,e = self.semi_latus_rectum, self.eccentricity
-        if theta is None:
-            theta = self.true_anom(t)
-        l = p/(1+e*cos(theta))
-        return self.orientation * ((cossin(theta))*l)
-    
     def pe(self):
         p = self.semi_latus_rectum
         e = self.eccentricity
         return self.orientation * (uniti*p/(1+e))
     
+    def ap(self):
+        p = self.semi_latus_rectum
+        e = self.eccentricity
+        return self.orientation * (-uniti*p/(1-e))
+    
+    def time_to_pe(self, t):
+        M = 2*pi - self.mean_anomaly(t)
+        return M / self.mean_motion
+    
+    def time_to_ap(self, t):
+        M = self.mean_anomaly(t)
+        if M > pi:
+            return self.time_to_pe(t) + (2*pi-M)/self.mean_motion
+        else:
+            return (pi-M) / self.mean_motion
+    
+    def r(self, t, theta=None):
+        from .util import cossin
+        from numpy import cos
+        p,e = self.semi_latus_rectum, self.eccentricity
+        if theta is None:
+            theta = self.true_anomaly(t)
+        l = p/(1+e*cos(theta))
+        return self.orientation * ((cossin(theta))*l)
+    
     def v(self, t, theta=None):
         p,e,a,u = self.semi_latus_rectum, self.eccentricity, self.semi_major_axis, self.GM
         if theta is None:
-            theta = self.true_anom(t)
+            theta = self.true_anomaly(t)
         ct, st, _ = cossin(theta)
         l = p/(1+e*ct)
         vel = sqrt(u*(2./l-1./a))
@@ -135,7 +152,7 @@ class KeplerOrbit(object):
     
     def rv(self, t, theta=None):
         if theta is None:
-            theta = self.true_anom(t)
+            theta = self.true_anomaly(t)
         return self.r(t, theta), self.v(t, theta)
     
     def period(self):

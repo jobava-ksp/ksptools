@@ -4,61 +4,15 @@ from numpy.linalg import norm
 from . import orbit
 from .util import Ax, rotvec, uniti, unitj, unitk
 
-class State(object):
-    def __init__(self, refbody, body=None, epoch=0.):
-        self.refbody = refbody
-        self.body = body
-        self.epoch = epoch
-        self.up = unitk #TODO: more generalized body orientation
-    
-    def asorbit(self):
-        raise NotImplementedError
-    
-    def asvectors(self):
-        raise NotImplementedError
 
-
-class OrbitalState(State):
-    def __init__(self, refbody, kepler, body=None, epoch=0.):
-        State.__init__(self, refbody, body, epoch)
-        self.kepler = kepler
-        self.rv = self.kepler.rv
-        self.period = self.kepler.period
-    
-    def asorbit(self):
-        return self
-    
-    def asvectors(self):
-        r, v = self.kepler.rv(self.epoch)
-        return VectorState(self.refbody, r, v, self.body, self.epoch)
-
-
-class VectorState(State):
-    def __init__(self, refbody, r, v, body=None, epoch=0.):
-        State.__init__(self, refbody, body, epoch)
-        self.velocity = v
-        self.position = r
-    
-    def asorbit(self):
-        kep = orbit.KeplerOrbit.from_rvu(
-                self.velocity,
-                self.position,
-                self.refbody.std_g_param,
-                self.epoch)
-        return OrbitalState(self.refbody, kep, self.body, self.epoch)
-
-    def asvectors(self):
-        return self
-    
-    def asgeocentric(self):
+def rv_to_llav(pos, vel, refbody, epoch):
         # rotation
-        up = self.refbody.state.up
-        t = (2*pi/(self.refbody.sidereal_rate)) * self.epoch
+        t = (2*pi/(refbody.sidereal_rate)) * epoch
         Ar = rotvec(u,-t)
-        r = Ax(Ar, self.position)
+        r = Ax(Ar, pos)
         
         # fixed position
-        alt = norm(r) - self.refbody.eq_radius
+        alt = norm(r) - refbody.eq_radius
         x,y,z = r
         lat = arcsin(z/norm(r))
         lon = arccos(y/r)
@@ -67,42 +21,235 @@ class VectorState(State):
         
         # rotate velocity
         Av = rotvec(unitj, -lat)
-        v = Ax(Av*Ar, self.velocity)
+        v = Ax(Av*Ar, vel)
         
-        return GeocentricState(self.refbody, lon, lat, alt, v, self.body, self.epoch)
+        return lon, lat, alt, v
+
+def llav_to_rv(lon, lat, alt, vel, refbody, epoch):
+        # fixed position
+        rad = alt + refbody.eq_radius
+        x = rad*cos(lat)*cos(lon)
+        y = rad*cos(lat)*sin(lon)
+        z = rad*sin(lat)
+        fixed = array([x,y,z])
+        
+        # rotation
+        t = (2*pi/(refbody.sidereal_rate)) * epoch
+        Ar = rotvec(u,t)
+        Av = rotvec(unitj, lat)
+        
+        r = Ax(Ar, fixed)
+        v = Ax(Ar*Av, vel)
+        return r, v
+
+class State(object):
+    def __init__(self, refbody, body=None, epoch=0.):
+        self.refbody = refbody
+        self.body = body
+        self.epoch = epoch
     
-    def rv(self, t):
-        return self.position + self.velocity * (t-epoch), self.velocity
+    def _asorbit(self):
+        raise NotImplementedError
+    
+    def _asvectors(self):
+        raise NotImplementedError
+    
+    def _asgeocentric(self):
+        raise NotImplementedError
+    
+    @classmethod
+    def _from_vectors(cls, refbody, r, v, body, epoch):
+        raise NotImplementedError
+    
+    @property
+    def apoapsis_hieght(self):
+        return norm(self.apoapsis)
+    
+    @property
+    def apoapsis_altitude(self):
+        return norm(self.apoapsis) - self.refbody.eq_radius
+    
+    @property
+    def periapsis_height(self):
+        return norm(self.periapsis)
+    
+    @property
+    def periapsis_altitude(self):
+        return norm(self.periapsis) - self.refbody.eq_radius
+    
+    @property
+    def time_to_apoapsis(self):
+        return self._asorbit().time_to_apoapsis
+    
+    @property
+    def time_to_periapsis(self):
+        return self._asorbit().time_to_periapsis
+    
+    @property
+    def apoapsis(self):
+        return self._asorbit().apoapsis
+    
+    @property
+    def periapsis(self):
+        return self._asorbit().periapsis
+    
+    @property
+    def longitude(self):
+        return self._asgeocentric().longitude
+    
+    @property
+    def latitude(self):
+        return self._asgeocentric().latitude
+    
+    @property
+    def altitude(self):
+        return norm(self.position) - self.refbody.eq_radius
+    
+    def applyforce(self, force, dt):
+        r0, v0 = self.rv(self.epoch)
+        a = force / self.body.mass
+        r = r0 + v0*dt + a*(dt**2)/2
+        v = v0 + a*dt
+        return type(self).from_rv(self.refbody, r, v, self.body, self.epoch + dt)
+
+
+class OrbitalState(State):
+    def __init__(self, refbody, kepler, body=None, epoch=0.):
+        State.__init__(self, refbody, body, epoch)
+        self._kepler = kepler
+    
+    def _asorbit(self):
+        return self
+    
+    def _asvectors(self):
+        if not hasattr(self, '_vectors'):
+            r, v = self._kepler.rv(self.epoch)
+            self._vectors = VectorState(self.refbody, r, v, self.body, self.epoch)
+        return self._vectors
+    
+    def _asgeocentric(self):
+        if not hasattr(self, '_geocentric'):
+            r, v = self._kepler.rv(self.epoch)
+            lon, lat, alt, vel = rv_to_llav(r, v, self.refbody, self.epoch)
+            self._geocentric = GeocentricState(self.refbody, lon, lat, alt, vel, self.body, self.epoch)
+        return self._geocentric
+    
+    @classmethod
+    def from_rv(cls, refbody, r, v, body, epoch):
+        kep = KeplerOrbit.from_rvu(r, v, refbody.std_g_param, epoch)
+        return cls(refbody, kep, body, epoch)
+    
+    @property
+    def position(self):
+        return self._kepler.r(self.epoch)
+    
+    @property
+    def velocity(self):
+        return self._kepler.v(self.epoch)
+    
+    @property
+    def rv(self):
+        return self._kepler.rv(self.epoch)
+    
+    @property
+    def apoapsis(self):
+        return self._kepler.ap()
+    
+    @property
+    def periapsis(self):
+        return self._kepler.pe()
+    
+    @property
+    def time_to_apoapsis(self):
+        return self._kepler.time_to_ap(self.epoch)
+    
+    @property
+    def time_to_periapsis(self):
+        return self._kepler.time_to_pe(self.epoch)
+
+
+class VectorState(State):
+    def __init__(self, refbody, r, v, body=None, epoch=0.):
+        State.__init__(self, refbody, body, epoch)
+        self._vel = v
+        self._pos = r
+    
+    def _asorbit(self):
+        if not hasattr(self, '_orbit'):
+            kep = orbit.KeplerOrbit.from_rvu(
+                    self._pos,
+                    self._vel,
+                    self.refbody.std_g_param,
+                    self.epoch)
+            self._orbit = OrbitalState(self.refbody, kep, self.body, self.epoch)
+        return self._orbit
+
+    def _asvectors(self):
+        return self
+    
+    def _asgeocentric(self):
+        if not hasattr(self, '_gocentric'):
+            lon, lat, alt, vel = rv_to_llav(self._pos, self._vel, self.refbody, self.epoch)
+            self._geocentric = GeocentricState(self.refbody, lon, lat, alt, vel, self.body, self.epoch)
+        return self._geocentric
+    
+    @classmethod
+    def from_rv(cls, refbody, r, v, body, epoch):
+        return cls(refbody, r, v, body, epoch)
+    
+    @property
+    def position(self):
+        return self._pos
+    
+    @property
+    def velocity(self):
+        return self._vel
+    
+    @property
+    def rv(self):
+        return self._pos, self._vel
 
 
 class GeocentricState(State):
     def __init__(self, refbody, longitude, latitude, altitude, velocity, body=None, epoch=0.):
         State.__init__(self, refbody, body, epoch)
-        self.longitude = longitude
-        self.latitude = latitude
-        self.altitude = altitude
-        self.velocity = velocity
+        self._lon = longitude
+        self._lat = latitude
+        self._alt = altitude
+        self._vel = velocity
     
-    def asvectors(self):
-        r = self.altitude + self.refbody.eq_radius
-        v = self.velocity
-        
-        # fixed position
-        x = r*cos(self.latitude)*cos(self.longitude)
-        y = r*cos(self.latitude)*sin(self.longitude)
-        z = r*sin(self.latitude)
-        fixed = array([x,y,z])
-        
-        # rotation
-        up = self.refbody.state.up
-        t = (2*pi/(self.refbody.sidereal_rate)) * self.epoch
-        Ar = rotvec(u,t)
-        Av = rotvec(unitj,self.latitude)
-        
+    def _asorbit(self):
+        if not hasattr(self, '_orbit'):
+            r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
+            kep = orbit.KeplerOrbit.from_rvu(r, v, self.refbody.std_g_param, self.epoch)
+            self._orbit = OrbitalState(self.refbody, kep, self.body, self.epoch)
+    
+    def _asvectors(self):
+        r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
         return VectorState(self.refbody, Ax(Ar, fixed), Ax(Ar*Av, v), self.body, self.epoch)
     
-    def asgeocentric(self):
+    def _asgeocentric(self):
         return self
+    
+    @classmethod
+    def from_rv(cls, refbody, r, v, body, epoch):
+        lon, lat, alt, vel = rv_to_llav(r, v, refbody, refbody, refbody.pu, epoch)
+        return cls(self.refbody, lon, lat, alt, vel, body, epoch)
+    
+    @property
+    def position(self):
+        r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
+        return r
+    
+    @property
+    def velocity(self):
+        r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
+        return v
+    
+    @property
+    def rv(self):
+        r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
+        return r, v
 
 
 class FixedState(State):

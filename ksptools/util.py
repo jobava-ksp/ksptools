@@ -1,5 +1,5 @@
 from __future__ import division
-from numpy import array, sin, cos, mat, dot, cross, arccos, arcsin, arctan2, pi
+from numpy import array, sin, cos, mat, dot, cross, arccos, arcsin, arctan2, pi, linspace
 from numpy.linalg import norm
 
 
@@ -8,19 +8,19 @@ unitj = array([0.,1.,0.])
 unitk = array([0.,0.,1.])
 
 def rotx(t):
-    return mat([[1,       0,      0],
-                 [0,  cos(t), sin(t)],
-                 [0, -sin(t), cos(t)]])
+    return mat([[1,       0,       0],
+                 [0,  cos(t), -sin(t)],
+                 [0,  sin(t), cos(t)]])
 
 def roty(t):
-    return mat([[cos(t), 0, -sin(t)],
-                 [0,      1,       0],
-                 [sin(t), 0,  cos(t)]])
+    return mat([[cos(t),  0,  sin(t)],
+                 [0,       1,       0],
+                 [-sin(t), 0,  cos(t)]])
 
 def rotz(t):
     return mat([[cos(t), -sin(t), 0],
-                [sin(t),  cos(t), 0],
-                [     0,       0, 1]])
+                 [sin(t),  cos(t), 0],
+                 [    0,        0, 1]])
 
 def rotvec(u,t):
     x,y,z = u
@@ -34,8 +34,6 @@ def cossin(t, dim=3):
 
 def veccos(a,b):
     _a = dot(a,b)/(norm(a)*norm(b))
-    #if norm(a)*norm(b) == 0:
-    #    return 0.0
     return min(1.0, max(-1.0, _a))
 
 def vecsin(a,b,up=unitk):
@@ -101,57 +99,29 @@ class EulerAngle(object):
 
 ### -- matplotlib -- ###
 def plotfunc(f, x0, x1, ax=None):
-    from numpy import linspace
-    import matplotlib.pyplot as plt
     x = linspace(x0, x1, 600)
     y = [f(t) for t in x]
-    
-    if ax is None:
-        plt.plot(x,y)
-        plt.show()
-    else:
-        ax.plot(x,y)
+    ax.plot(x,y)
 
 
 def plot_semi_orbit(kep, t0, t1, ax):
-    from numpy import linspace
-    #import matplotlib.pyplot as plt
-    
     t = linspace(t0,t1,600)
     r = [kep.r(i) for i in t]
     x, y, z = zip(*r)
-    
-    if ax is None:
-        plt.plot(x,y)
-    else:
-        ax.plot(x,y)
+    ax.plot(x,y)
 
 def plot_semi_orbit3d(kep, t0, t1, ax):
-    from numpy import linspace
-    #import matplotlib.pyplot as plt
-    
     t = linspace(t0,t1,600)
     r = [kep.r(i) for i in t]
     x, y, z = zip(*r)
     ax.plot(x,y,z)
 
 def plot_rv(r, v, ax, scale=1.):
-    from numpy import linspace
-    #import matplotlib.pyplot as plt
-    
     rv = (r, r+scale*v)
     x, y, z = zip(*rv)
+    ax.plot(x,y)
     
-    if ax is None:
-        plt.plot(x,y)
-    else:
-        ax.plot(x,y)
-    
-
 def plot_rv3d(r, v, ax, scale=1.):
-    from numpy import linspace
-    import matplotlib.pyplot as plt
-
     rv = (r, r+v)
     x, y, z = zip(*rv)
     ax.plot(x,y,z)

@@ -1,3 +1,4 @@
+import copy
 
 class ResourceType(object):
     def __init__(self, name, title, unitcost, unitmass):
@@ -13,27 +14,23 @@ class ResourceType(object):
         return hash(self.name)
 
 
-class ResourceSink(object):
+class ResourceTank(object):
     def __init__(self, resourcetype, quantity):
         self.resourcetype = resourcetype
         self.quantity = quantity
-        self.sinks = []
-        self.sources = []
     
-    @staticmethod
-    def combine(parts):
-        res = dict()
-        for part in parts:
-            for r in part.resources:
-                if r.resourcetype.name not in res:
-                    res[r.resourcetype.name] = ResourceSink(r.resourcetype, 0)
-                res[r.resource.name].quantity += r.quantity
-        return res
+    @property
+    def mass(self):
+        return self.quantity * self.resourcetype.unitdensity
     
-    @staticmethod
-    def link(sink, source):
-        sink.sources.add(source)
-        source.sinks.add(sink)
+    def drain(self, quantity=None):
+        if quantity is None:
+            self.quantity = 0
+        else:
+            self.quantity += quantity
+    
+    def fill(self, quantity):
+        self.quantity += quantity
 
 
 class PartType(object):
@@ -44,15 +41,7 @@ class PartType(object):
         self.cost = cost
         self.mass = mass
         self.coefdrag = coefdrag
-        self.resources = resources
-
-
-class Part(object):
-    def __init__(self, parttype):
-        self.parttype = parttype
-    
-    def __eq__(self, other):
-        
+        self.resources = dict((r.resourcetype.name, copy.copy(r)) for r in resources)
 
 
 class EnginePartType(PartType):
@@ -65,7 +54,6 @@ class EnginePartType(PartType):
         self.ffvac = ff
         self.ffatm = ffatm
         self.ispscale = ispatm - isp
-        self.sources = set()
     
     def isp(self, atm=0.):
         return self.ispvac + self.ispscale*max(0, min(1, atm))
@@ -73,30 +61,27 @@ class EnginePartType(PartType):
     def ff(self, scale=1., atm=0.):
         return (scale * self.maxthrust) / (9.80665 * self.isp(atm))
     
-    def trhust(self, scale=1., atm=0.):
+    def thrust(self, scale=1., atm=0.):
         return scale * self.maxtrhust
 
 
 class FueledEnginePartType(EnginePartType):
     def __init__(self, name, title, cost, drymass, wetmass, coefdrag, fueltype, maxthrust, isp, ispatm, ff, ffatm):
-        res = ResourceSink(fueltype, wetmass - drymass)
+        res = ResourceTank(fueltype, wetmass - drymass)
         PartType.__init__(self, name, ['sink', 'source'], title, cost, drymass, coefdrag, [res])
         self.resourcetype = fueltype
         self.maxthrust = maxthrust
         self.ispvac = isp
         self.ispatm = ispatm
-        self.ff = ff
+        self.ffvac = ff
         self.ffatm = ffatm
         self.ispscale = ispatm - isp
-        self.sources = set()
-        self.sinks = set()
 
 
 class FuelTankPartType(PartType):
     def __init__(self, name, title, cost, drymass, wetmass, coefdrag, resourcetype):
-        res = ResourceSink(resourcetype, wetmass - drymass)
+        res = ResourceTank(resourcetype, wetmass - drymass)
         PartType.__init__(self, name, ['source'], title, drymass, coefdrag, [res])
-        self.sinks = set()
 
 
 class ChutePartType(PartType):
@@ -105,5 +90,48 @@ class ChutePartType(PartType):
         self.coefdrag = coefdrag
         self.semidrag = semidrag
         self.maxdrag = maxdrag
+
+
+class Part(object):
+    def __init__(self, parttype, resource_quantity_mult=dict()):
+        for k, v in vars(parttype):
+            setattr(self, k, v)
+        for k, f in resource_quantity_mult:
+            self.resources[k].quantity = f * self.resources[k].quantity
+
+
+class EnginePart(Part):
+    def __init__(self, parttype):
+        Part.__init__(self, parttype)
+        self.isp = parttype.isp
+        self.ff = parttype.ff
+        self.thrust = parttype.thrust
+
+
+class PartGroup(Part):
+    def __init__(self, parts):
+        self.parts = parts
+        self.jointanks()
+    
+    def jointanks(self):
+        self.resources = dict()
+        for p in self.parts:
+            for k, tank in p.resources:
+                if k not in self.resources:
+                    self.resources[k] = copy.copy(tank)
+                else:
+                    self.resources[k].quantity += tank.quantity
+                tank.quantity = 0
+    
+    @property
+    def mass(self):
+        return sum(p.mass for p in self.parts) + sum(tank.mass for tank is self.resources.values())
+    
+
+def group(parts):
+    if isinstance(parts, PartGroup):
+        return parts
+    else:
+        return PartGroup(parts)
 
 
