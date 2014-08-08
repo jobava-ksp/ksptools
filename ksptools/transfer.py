@@ -9,7 +9,7 @@ from numpy.linalg import norm
 from .util import arcvec, cossin
 from .orbit import KeplerOrbit
 
-TransferParameters = collections.namedtuple("TransferParameters", ['u','r1','v1','r2','v2','t0','t1', 'dta'])
+TransferParameters = collections.namedtuple("TransferParameters", ['u','r1','v1','r2','v2','t1','t2', 'dta'])
 
 
 class TransferSolver(object):
@@ -121,34 +121,38 @@ class SemiLatisSolver(TransferSolver):
         return scipy.optimize.approx_fprime(p, lambda i: self.tof(i, params), eps)
 
 
-def commonplane(kep1, kep2, t0, t1):
-    r1, v1 = kep1.rv(t0)
-    r2, v2 = kep2.rv(t1)
-    r2 = kep1.orientation / (kep2.orientation * r2)
-    v2 = kep1.orientation / (kep2.orientation * v2)
-    return r1, v1, r2, v2, lon_asc
-
-def solve_transfer(u, kep1, kep2, t0, t1, method='ballistic', solver=SemiLatisSolver, output='kepler'):
-    r1, v1 = kep1.rv(t0)
-    r2, v2 = kep2.rv(t1)
-    
+def solve_transfer(u, r1, v1, r2, v2, t1, t2, method='ballistic', solver=SemiLatisSolver, output='kepler'):
     if method == 'ballistic':
         dta = arcvec(r1, r2)
-        mnsol, err, solv1, solv2 = solve_transfer_planar(TransferParameters(u, r1, v1, r2, v2, t0, t1, dta), solver())
+        mnsol, err, solv1, solv2 = solve_transfer_planar(TransferParameters(u, r1, v1, r2, v2, t1, t2, dta), solver())
         if output == 'debug':
             return mnsol, err, solv1, solv2
         elif output == 'kepler':
-            return KeplerOrbit.from_rvu(r1, solv1, u, t0)
+            return KeplerOrbit.from_rvu(r1, solv1, u, t1)
 
 def solve_transfer_planar(params, solver):
     x = solver.start(params)
-    t0, t1 = params.t0, params.t1
+    t1, t2 = params.t1, params.t2
     
-    f = lambda i: (solver.tof(i, params) - (t1 - t0))**2
-    fp = lambda i: 2*(solver.tof(i, params) - (t1 - t0))*solver.tofprime(i, params)
+    f = lambda i: (solver.tof(i, params) - (t2 - t1))**2
+    fp = lambda i: 2*(solver.tof(i, params) - (t2 - t1))*solver.tofprime(i, params)
     
     p = scipy.optimize.minimize(f, x, jac=fp, bounds=[(solver.minvalue, solver.maxvalue)], method='TNC')
     err = sqrt(p.fun)
     solv1, solv2 = solver.solution(p.x[0], params)
     return p, err, solv1, solv2
-        
+
+def solve_ejection(u, r0, v1, soi):
+    vc = sqrt(2*u/r0) # velocity in circular orbit
+    v0 = sqrt(norm(v1)**2 + 2*u/r0) # velocity at periapse of ejection
+    a = 1/(2/r0-(v0**2)/u) # semi major axis of ejection
+    e = (r0*v0**2)/u-1 # eccentricity of ejection
+    
+    cost = (a*(1-e**2)-soi)/(e*soi) # cos(true anomaly at ejection)
+    coshF = (e + cost)/(1+e*cost) # cosh(eccentric anomaly at ejection)
+    F = arccosh(coshF)
+    mm = sqrt((-a)**3/u) # mean motion
+    dt = F/mm # time from r0 (position at ejection burn) to r1 (position leaving sphere of influence)
+    
+    ### TODO: I need to know time of ejection burn, delta v from parking orbit to ejection, and new position leaving soi ###
+    
