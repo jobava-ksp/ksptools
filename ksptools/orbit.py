@@ -98,7 +98,11 @@ class KeplerOrbit(object):
         if theta is None:
             theta = self.true_anomaly(t)
         ct, st, _ = cossin(theta)
-        return self.orientation * array([-st, e+ct, 0])
+        #return self.orientation * array([-st, e+ct, 0]) <-- old value. not correct i don't think
+        n = a*(e**2-1)*ct/(1+e*ct)
+        dx = n*ct
+        dy = n*st
+        return self.orientation * array([dx, dy, 0])
     
     def radialin(self, t, theta=None):
         e = self.eccentricity

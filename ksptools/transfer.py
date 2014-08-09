@@ -142,17 +142,28 @@ def solve_transfer_planar(params, solver):
     solv1, solv2 = solver.solution(p.x[0], params)
     return p, err, solv1, solv2
 
-def solve_ejection(u, r0, v1, soi):
-    vc = sqrt(2*u/r0) # velocity in circular orbit
-    v0 = sqrt(norm(v1)**2 + 2*u/r0) # velocity at periapse of ejection
-    a = 1/(2/r0-(v0**2)/u) # semi major axis of ejection
-    e = (r0*v0**2)/u-1 # eccentricity of ejection
+
+def solve_flyby(u, rp, vel0, soi):
+    vp = sqrt(norm(v0)**2 + 2*u/rp) # orbital speed at pe
+    a = 1/(2/rp-(vp**2)/u)          # semi major axis
+    e = (rp*vp**2)/u - 1            # eccentricity
+    cost = (a*(1-e**2)-soi)/(e*soi) # cosine of true anomaly passing soi
+    vel0k = project(vel0, unitk)[2] # velocity going up
     
-    cost = (a*(1-e**2)-soi)/(e*soi) # cos(true anomaly at ejection)
-    coshF = (e + cost)/(1+e*cost) # cosh(eccentric anomaly at ejection)
-    F = arccosh(coshF)
-    mm = sqrt((-a)**3/u) # mean motion
-    dt = F/mm # time from r0 (position at ejection burn) to r1 (position leaving sphere of influence)
+    coshF = (e + cost)/(1+e*cost)   # cosine hyperbolic of eccentric anomaly
+    F = arccosh(coshF)              # eccentric anomaly (without sign)
+    mm = sqrt((-a)**3/u)            # mean motion
+    delta_time = F/mm               # delta time
+    return vp, a, e, cost, F, delta_time, vel0k
+
+def solve_ejection(u, rp, vel0, soi):
+    vp, a, e, cost, F, delta_time, vel0k = solve_flyby(u, rp, vel0, soi)
     
-    ### TODO: I need to know time of ejection burn, delta v from parking orbit to ejection, and new position leaving soi ###
+    dt = a*(e**2-1)*cost/(1+e*cost) # dt for dx/dt and dy/dt (planar velocity)
+    vplanar_y = norm(vel0)*dtdy     # y component of planar velocity at soi
+    
+    if vel0k >= 0: # ascending
+        inc = arcsin(vel0k/vplanar_y) # inclenation for ascending node at pe
+    else: # descending
+        inc = arcsin(-vel0k/vplanar_y) # inclenation for descending node at pe
     
