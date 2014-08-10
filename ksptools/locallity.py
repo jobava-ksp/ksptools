@@ -105,7 +105,15 @@ class State(object):
     def altitude(self):
         return norm(self.position) - self.refbody.eq_radius
     
-    def applyforce(self, force, dt):
+    @property
+    def kepler(self):
+        return self._asorbit().kepler
+    
+    @property
+    def period(self):
+        return self._asorbit().kepler.period()
+    
+    def physicspass(self, force, dt):
         r0, v0 = self.rv(self.epoch)
         a = force / self.body.mass
         r = r0 + v0*dt + a*(dt**2)/2
@@ -166,6 +174,14 @@ class OrbitalState(State):
     @property
     def time_to_periapsis(self):
         return self._kepler.time_to_pe(self.epoch)
+    
+    @property
+    def kepler(self):
+        return self._kepler
+    
+    @property
+    def period(self):
+        return self._kepler.period()
 
 
 class VectorState(State):
@@ -255,3 +271,11 @@ class GeocentricState(State):
 class FixedState(State):
     def __init__(self, refbody=None, body=None, epoch=0.):
         State.__init__(self, refbody, body, epoch)
+    
+    @property
+    def position(self):
+        return array([0,0,0])
+    
+    @property
+    def velocity(self):
+        return array([0,0,0])

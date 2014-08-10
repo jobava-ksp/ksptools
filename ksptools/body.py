@@ -15,7 +15,7 @@ class Body(object):
         else:
             self.std_g_param = u
             self.mass = u / 6.67384e-11
-        self.state = state
+        self._state = state
         self.sattelites = set()
     
     def __eq__(self, other):
@@ -25,25 +25,42 @@ class Body(object):
         return hash(self.keyname)
     
     @property
-    def orbit(self):
-        return self.state.asorbit().kepler
+    def kepler(self):
+        return self._state.kepler
     
     @property
     def velocity(self):
-        return self.state.asvectors().velocity
+        return self._state.velocity
     
     @property
-    def local_position(self):
-        return self.state.asposition().position
+    def position(self):
+        return self._state.position
     
     @property
     def global_position(self):
-        p = self.state.refbody
-        r = self.local_position
+        p = self._state.refbody
+        r = self._state.position
         if p is not None:
             return r + p.global_position
         else:
             return r
+    
+    @property
+    def global_velocity(self):
+        p = self._state.refbody
+        v = self._state.velocity
+        if p is not None:
+            return v
+        else:
+            return v + p.global_velocity
+    
+    @property
+    def parent(self):
+        return self._state.refbody
+    
+    @property
+    def period(self):
+        return self._state.period
 
 
 class CelestialBody(Body):
@@ -100,7 +117,7 @@ class System(object):
         self.bodies = dict((b.keyname, b) for b in bodies)
         self.centers = set()
         for b in bodies:
-            if b.state.refbody is None:
+            if b.parent is None:
                 self.centers.add(b)
             b.system = self
     

@@ -12,6 +12,11 @@ class KerbalTime(object):
     seconds_per_minute = 60.0
     seconds_per_microsecond = 1e-6  
     
+    days_per_year = 426
+    hours_per_day = 6
+    minutes_per_hour = 60
+    seconds_per_minute = 60
+    
     def __init__(self, seconds):
         self.total_seconds = seconds
     
@@ -21,19 +26,19 @@ class KerbalTime(object):
         
     @property
     def days(self):
-        return int(self.total_seconds // KerbalTime.seconds_per_day)
+        return int(self.total_seconds // KerbalTime.seconds_per_day) % KerbalTime.days_per_year
     
     @property
     def hours(self):
-        return int(self.total_seconds // KerbalTime.seconds_per_hour)
+        return int(self.total_seconds // KerbalTime.seconds_per_hour) % KerbalTime.hours_per_day
     
     @property
     def minutes(self):
-        return int(self.total_seconds // KerbalTime.seconds_per_minute)
+        return int(self.total_seconds // KerbalTime.seconds_per_minute) % KerbalTime.minutes_per_hour
     
     @property
     def seconds(self):
-        return int(self.total_seconds)
+        return int(self.total_seconds) % KerbalTime.seconds_per_minute
     
     @property
     def microsecnds(self):

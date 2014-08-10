@@ -3,10 +3,13 @@ from __future__ import print_function, division
 import collections
 import scipy.optimize
 
-from numpy import sqrt, dot, cos, sin, arccos, arcsin, pi, arccosh, sinh, tan, spacing, arctan, arctan2, finfo
-from numpy.linalg import norm
+from numpy import array, dot, cross, sqrt, pi
+from numpy import cos, sin, tan, arccos, arcsin, arctan, arctan2
+from numpy import sinh, arccosh
+from numpy import spacing, finfo
+from numpy.linalg import norm, solve
 
-from .util import arcvec, cossin
+from .util import arcvec, cossin, rotz, rotx, Ax
 from .orbit import KeplerOrbit
 
 TransferParameters = collections.namedtuple("TransferParameters", ['u','r1','v1','r2','v2','t1','t2', 'dta'])
@@ -143,27 +146,58 @@ def solve_transfer_planar(params, solver):
     return p, err, solv1, solv2
 
 
-def solve_flyby(u, rp, vel0, soi):
-    vp = sqrt(norm(v0)**2 + 2*u/rp) # orbital speed at pe
-    a = 1/(2/rp-(vp**2)/u)          # semi major axis
-    e = (rp*vp**2)/u - 1            # eccentricity
-    cost = (a*(1-e**2)-soi)/(e*soi) # cosine of true anomaly passing soi
-    vel0k = project(vel0, unitk)[2] # velocity going up
+def solve_flyby(u, distance, vsoi, soi, eta, insertion=False):
+    #vp = sqrt(norm(vsoi)**2 + 2*u/distance) # orbital speed at pe
+    vp = sqrt(norm(vsoi)**2 + 2*u*((norm(soi)-distance)/(norm(soi)*distance)))
+    ## Basic Orbital Parameters ##
+    
+    a = 1/(2/distance-(vp**2)/u)            # semi major axis
+    e = (distance*vp**2)/u - 1              # eccentricity
+    cost = (a*(1-e**2)-soi)/(e*soi)         # cosine of true anomaly passing soi
+    
+    t = arccos(cost)                # true anomaly (assuming an ejection)
+    if insertion:                   # fix for insertion
+        t = -t
+    sint = sin(t)                   # sine of true anomaly
+    
+    ## Orientation Parameters ##
+    fa = arctan(e*sint/(1+e*cost))
+    fpath = 0.5*pi + t - fa
+    
+    vi, vj, vk = vsoi                                  # velocity by component
+    vx, vy = norm(vsoi) * array([cos(fpath), sin(fpath)])
+    
+    if vk >= 0: # ascending
+        inc = arcsin(vk/vy)              # inclenation for ascending node at pe
+        argpe = 0                        # argument pe (right on top of ascending node)
+        cos_lonasc, sin_lonasc = solve(array([[vx, -cos(inc)*vy],[cos(inc)*vy, vx]]), array([vi, vj]))
+        lonasc = arctan2(sin_lonasc, cos_lonasc)
+    else: # descending
+        inc = arcsin(-vk/vy)             # inclenation for descending node at pe
+        argpe = pi                       # argument pe (opposite of ascending node)
+        cos_lonasc, sin_lonasc = solve(array([[-vx, cos(inc)*vy],[-cos(inc)*vy, -vx]]), array([vi, vj]))
+        lonasc = arctan2(sin_lonasc, cos_lonasc)
+    A = rotz(lonasc)*rotx(inc)*rotz(argpe)       # rotation matrix
+    print(inc, argpe, lonasc)
+    
+    ## Position at Soi ##
+    
+    rplanar = array([cost, sint, 0])*soi      # planar position
+    rsoi = Ax(A, rplanar)                 # position at soi
+    
+    ## Position at Pe
+    
+    rplanar = array([1, 0, 0])*distance   # planar position
+    rpe = Ax(A, rplanar)                  # position at pe
+    
+    ## Time offset ##
     
     coshF = (e + cost)/(1+e*cost)   # cosine hyperbolic of eccentric anomaly
-    F = arccosh(coshF)              # eccentric anomaly (without sign)
-    mm = sqrt((-a)**3/u)            # mean motion
-    delta_time = F/mm               # delta time
-    return vp, a, e, cost, F, delta_time, vel0k
+    F = arccosh(coshF)              # eccentric anomaly (assuming ejection)
+    mm = sqrt(u/(-a)**3)            # mean motion
+    delta_time = (e*sinh(F)-F)/mm   # delta time
 
-def solve_ejection(u, rp, vel0, soi):
-    vp, a, e, cost, F, delta_time, vel0k = solve_flyby(u, rp, vel0, soi)
-    
-    dt = a*(e**2-1)*cost/(1+e*cost) # dt for dx/dt and dy/dt (planar velocity)
-    vplanar_y = norm(vel0)*dtdy     # y component of planar velocity at soi
-    
-    if vel0k >= 0: # ascending
-        inc = arcsin(vel0k/vplanar_y) # inclenation for ascending node at pe
-    else: # descending
-        inc = arcsin(-vel0k/vplanar_y) # inclenation for descending node at pe
-    
+    if insertion:
+        return vp, rpe, rsoi, eta - delta_time
+    else:
+        return vp, rpe, rsoi, eta + delta_time

@@ -51,10 +51,13 @@ class KeplerOrbit(object):
         if a > 0:
             E = arccos((e+costa)/(1+e*costa))
             M = E - e*sin(E)
+            if dot(r, v) < 0:
+                M = 2*pi - M
         elif a < 0:
             F = arccosh((e+costa)/(1+e*costa))
             M = e*sinh(F) - F
-        if dot(r, v) < 0: M = 2*pi - M
+            if dot(r, v) < 0:
+                M = -M
         
         return cls(u, a, e, i, la, argpe, M, epoch)
 
@@ -75,7 +78,7 @@ class KeplerOrbit(object):
         f = lambda nF: e*sinh(nF) - nF - M
         fp = lambda nF: e*cosh(nF) - 1
         fp2 = lambda nF: -e*sinh(nF)
-        return newton(f,0,fp,fprime2=fp2)
+        return newton(f,0,fp,fprime2=fp2,maxiter=1000)
     
     def true_anomaly(self, t):
         e = self.eccentricity
@@ -95,14 +98,11 @@ class KeplerOrbit(object):
     
     def prograde(self, t, theta=None):
         e = self.eccentricity
+        a = self.semi_major_axis
         if theta is None:
             theta = self.true_anomaly(t)
-        ct, st, _ = cossin(theta)
-        #return self.orientation * array([-st, e+ct, 0]) <-- old value. not correct i don't think
-        n = a*(e**2-1)*ct/(1+e*ct)
-        dx = n*ct
-        dy = n*st
-        return self.orientation * array([dx, dy, 0])
+        fa = 0.5*pi + theta - arctan(e*sin(theta)/(1+e*cos(theta)))
+        return self.orientation * array([cos(fa), sin(fa), 0])
     
     def radialin(self, t, theta=None):
         e = self.eccentricity
