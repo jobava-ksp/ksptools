@@ -15,7 +15,7 @@ class KeplerOrbit(object):
         self.semi_latus_rectum = a*(1-e**2)
         self.semi_major_axis = a
         self.epoch = epoch
-        self.orientation = EulerAngle.from_pts(lon_asc, inc, arg_pe)
+        self.orientation = EulerAngle(lon_asc, inc, arg_pe)
         if a > 0:
             self.mean_motion = sqrt(u/self.semi_major_axis**3)
             self.M0 = M
