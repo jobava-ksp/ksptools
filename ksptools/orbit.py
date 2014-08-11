@@ -60,6 +60,11 @@ class KeplerOrbit(object):
                 M = -M
         
         return cls(u, a, e, i, la, argpe, M, epoch)
+    
+    @classmethod
+    def circular_equitorial(cls, u, r, lon_epoch, epoch=0.):
+        return cls(u, r, 0.0, 0.0, lon_epoch, 0.0, 0.0, epoch)
+        
 
     def mean_anomaly(self, t):
         return self.M0 + self.mean_motion * (t - self.epoch)
