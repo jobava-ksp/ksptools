@@ -70,20 +70,10 @@ def projmat(*basis):
     return mat([unit(v) for v in basis])
 
 
-class EulerAngle(object):    
-    def __init__(self, p, t, s):
-        Ap = rotz(p)  
-        At = rotx(t)
-        As = rotz(s)
+class Rotation(object):
+    def __init__(self, A):
+        self.A = A
         
-        self.phi, self.theta, self.psi = p, t, s
-        self.Ap, self.At, self.As = Ap, At, As
-        self.A = Ap*At*As
-    
-    @classmethod
-    def from_pts(cls,p,t,s):
-        return cls(p,t,s)
-    
     def rotate(self, r):
         return Ax(self.A,r)
     
@@ -95,6 +85,22 @@ class EulerAngle(object):
     
     def __div__(self, r):
         return Ax(self.A.T,r)
+
+
+class EulerAngle(Rotation):    
+    def __init__(self, p, t, s):
+        Ap = rotz(p)  
+        At = rotx(t)
+        As = rotz(s)
+        Rotation.__init__(self, Ap*At*As)
+
+
+class RollPitchYaw(Rotation):
+    def __init__(self, r, p, y):
+        Ay = rotz(y)
+        Ap = rotx(p)
+        Ar = roty(r)
+        Rotation.__init__(self, Ay*Ap*Ar)
 
 
 ### -- matplotlib -- ###

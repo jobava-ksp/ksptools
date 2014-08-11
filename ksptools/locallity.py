@@ -112,13 +112,6 @@ class State(object):
     @property
     def period(self):
         return self._asorbit().kepler.period()
-    
-    def physicspass(self, force, dt):
-        r0, v0 = self.rv(self.epoch)
-        a = force / self.body.mass
-        r = r0 + v0*dt + a*(dt**2)/2
-        v = v0 + a*dt
-        return type(self).from_rv(self.refbody, r, v, self.body, self.epoch + dt)
 
 
 class OrbitalState(State):

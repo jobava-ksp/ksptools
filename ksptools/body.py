@@ -1,9 +1,12 @@
 import re
+import numpy as np
+import numpy.linalg as npla
 
 from . import orbit
 from . import atmosphere
 
 from .locallity import OrbitalState, FixedState
+from .util import unit
 
 class Body(object):
     def __init__(self, keyname, name, state, mass=None, u=None):
@@ -61,6 +64,42 @@ class Body(object):
     @property
     def period(self):
         return self._state.period
+    
+    @property
+    def surfnorm(self):
+        return unit(self._state.position)
+    
+    def envforce(self, r, v, nbody=False, system=None):
+        if nbody is None:
+            Fg = (-unit(r))*(self.mass * self.refbody.std_g_param)/np.dot(r,r)
+        else:
+            raise NotImplementedError
+        if self.refbody.atmposphere is not None and npla.norm(r) < (self.eq_radius + self.atmosphere.height):
+            Fd = (-unit(v))*(0.5*dot(v,v)*self.coefDragArea()
+        else:
+            Fd = np.array([0.,0.,0.])
+        return Fd + Fg
+    
+    def step(self, world_time, dt, nbody=False, system=None):
+        r0, v0 = self._state.rv(self.epoch)
+        envforce = self.envforce(r0, v0, nbody, system)
+        bodyforce = self.bodyforce(world_time, dt)
+        a = (envforce + bodyforce) / self.mass
+        r = r0 + v0*dt + a*(dt**2)/2
+        v = v0 + a*dt
+        self._state = type(self._state).from_rv(self.refbody, r, v, self.body, self.epoch + dt)
+    
+    def coefDragArea(self):
+        raise NotImplementedError
+    
+    def bodyforce(self, world_time, dt):
+        raise NotImplementedError
+    
+    def prestep(self, world_time, dt):
+        raise NotImplementedError
+    
+    def poststep(self, world_time, dt):
+        raise NotImplementedError
 
 
 class CelestialBody(Body):
