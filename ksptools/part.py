@@ -94,10 +94,14 @@ class ChutePartType(PartType):
 
 class Part(object):
     def __init__(self, parttype, resource_quantity_mult=dict()):
+        self._isactive = False
         for k, v in vars(parttype):
             setattr(self, k, v)
         for k, f in resource_quantity_mult:
             self.resources[k].quantity = f * self.resources[k].quantity
+    
+    def activate(self):
+        self._isactive = True
 
 
 class EnginePart(Part):
@@ -126,6 +130,10 @@ class PartGroup(Part):
     @property
     def mass(self):
         return sum(p.mass for p in self.parts) + sum(tank.mass for tank is self.resources.values())
+    
+    @property
+    def coefdrag(self):
+        return sum(p.mass * p.8.0e-3 * p.coefdrag for p in self.parts)
     
 
 def group(parts):
