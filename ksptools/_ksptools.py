@@ -2,8 +2,8 @@ from .simulation import runsimulation
 
 def loadsystem(cfgfile):
     from re import match
-    from ConfigParser import ConfigParser, System
-    from .body import CelestialBody
+    from ConfigParser import ConfigParser
+    from .body import CelestialBody, System
     
     config_parser = ConfigParser()
     config_parser.read(cfgfile)

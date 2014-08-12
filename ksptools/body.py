@@ -9,7 +9,7 @@ from .locallity import OrbitalState, FixedState
 from .util import unit
 
 class Body(object):
-    def __init__(self, keyname, name, state, mass=None, u=None):
+    def __init__(self, keyname, name, state, mass=None, u=None, coefdrag=0):
         self.keyname = keyname
         self.name = name
         if u is None:
@@ -20,6 +20,7 @@ class Body(object):
             self.mass = u / 6.67384e-11
         self._state = state
         self.sattelites = set()
+        self.coefdrag = coefdrag
     
     def __eq__(self, other):
         return self.keyname == other.keyname
@@ -75,7 +76,7 @@ class Body(object):
         else:
             raise NotImplementedError
         if self.refbody.atmposphere is not None and npla.norm(r) < (self.eq_radius + self.atmosphere.height):
-            Fd = (-unit(v))*(0.5*dot(v,v)*self.coefDragArea()
+            Fd = (-unit(v))*(0.5*dot(v,v)*self.coefdrag)
         else:
             Fd = np.array([0.,0.,0.])
         return Fd + Fg
@@ -88,9 +89,6 @@ class Body(object):
         r = r0 + v0*dt + a*(dt**2)/2
         v = v0 + a*dt
         self._state = type(self._state).from_rv(self.refbody, r, v, self.body, self.epoch + dt)
-    
-    def coefDragArea(self):
-        raise NotImplementedError
     
     def bodyforce(self, world_time, dt):
         raise NotImplementedError
