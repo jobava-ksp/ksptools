@@ -1,7 +1,7 @@
 import itertools
 
 
-class Catalogue(self):
+class Catalogue(object):
     def add(self, parttype):
         setattr(self, parttype.name, parttype)
     
@@ -49,18 +49,25 @@ class PartType(object):
         self.drycost = drycost
         self.drymass = drymass
         self.coefdrag = coefdrag
-        self.resources = dict((r.name, ResourceTank(r, q)) for q, r in resources)
+        self.resources = dict((tank.resourcetype.name, tank) for tank in resources)
     
     def __mul__(self, other):
-        if isinstance(other, list):
-            return map(self.__mul__, other)
-        elif isinstance(other, tuple):
+        if isinstance(other, tuple):
             quantity, name = other
-            return self(q,n)
-        return self(other)
+            return [self(quantity,name)]
+        return [self(other)]
     
     def __rmul__(self, other):
         return self.__mul__(other)
+    
+    def __add__(self, other):
+        if isinstance(other, list):
+            return [self] + other
+        else:
+            return [self, other]
+    
+    def __radd__(self, other):
+        return self.__add__(other)
     
     def __call__(self, quantity=1, name=None):
         if quantity == 1:
@@ -82,13 +89,13 @@ class PartType(object):
 
 
 class Part(PartType):
-    def __init__(self, parttype, name=None):
-        for k, v in vars(parttype).items():
+    def __init__(self, prototype, name=None):
+        for k, v in vars(prototype).items():
             if k not in ['resources']:
                 setattr(self, k, v)
         if name is not None:
             self.name = name
-        self.resources = dict((name, tank.copy()) for name, tank in parttype.resources.items())
+        self.resources = dict((name, tank.copy()) for name, tank in prototype.resources.items())
         self.active = False
     
     @classmethod
@@ -147,6 +154,9 @@ class PartGroup(Part):
             for p in childpart.partsbyclass(partclass):
                 yield p
     
+    def addpart(self, part):
+        self.parts.append(part)
+    
     @property
     def mass(self):
         return sum(p.mass for p in self.parts)
@@ -165,16 +175,24 @@ class PartGroup(Part):
             p.activate()
     
     def __getitem__(self, name):
+        return PartGroup(list(self._iternamed(name)), name)
+    
+    def _iternamed(self, name, includeself=True):
+        if self.name == name and includeself:
+            yield self
         for p in self.parts:
-            if 'group' in p.partclass:
-                for subp in p[name]:
-                    yield subp
             if p.name == name:
                 yield p
-
-
-def group(name=None, *parts):
-    return PartGroup(list(parts), name)
+            elif 'group' in p.partclass:
+                for subpart in p._iternamed(name, False):
+                    yield subpart
+    
+    def __iadd__(self, other):
+        if isinstance(other, list):
+            for part in other:
+                self.addpart(part)
+        else:
+            self.addpart(other)
 
 
 class CrewPodPartType(PartType):
@@ -184,7 +202,7 @@ class CrewPodPartType(PartType):
         self.maxkerbals = kerbals
 
 
-class ProbePodPartType(PartType):
+class ProbePartType(PartType):
     def __init__(self, name, title, radialsize, drycost, drymass, ceofdrag, torque, resources):
         PartType.__init__(self, name, ['pod', 'crew', 'sas'], title, radialsize, drycost, drymass, ceofdrag, resources)
         self.torque = torque
@@ -285,7 +303,7 @@ class ChutePart(Part):
 
 class FeedPartType(PartType):
     def __init__(self, name, title, drycost, drymass, coefdrag):
-        PartType.__init__(self, name, ['feed'], title, None, drycost, drymass, coefdrag, [])
+        PartType.__init__(self, name, ['feed'], title, [None], drycost, drymass, coefdrag, [])
     
     @classmethod
     def instancetype(cls):

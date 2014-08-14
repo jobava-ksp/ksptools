@@ -4,82 +4,67 @@ from . import part
 from . import body
 from .util import unit, unitk, reject
 
-class Assembly(object):
-    def __init__(self, prev_assembly=None):
-        self.prev_assembly = prev_assembly
-        self.engines = []
-        
-        self.part_group = part.PartGroup([])
-        if prev_assembly is not None:
-            self.assembly_group = part.group(None, self.part_group, prev_assembly.assembly_group)
-            self.stages = prev_assembly.stages
-        else:
-            self.assembly_group = self.part_group
-            self.stages = [None]
+class AssemblyStage(part.PartGroup):
+    def __init__(self, parts=[], name=None):
+        part.PartGroup.__init__(self, parts, name)
+        self.activation_stages = [part.PartGroup([]), part.PartGroup([])]
     
-    def linkengines(self):
-        for engine_group in self.engines:
-            for engine in engine_group.partsbyclass('engine'):
-                if engine.tank is None:
-                    engine.link(self.part_group)
+    def setstages(self, part_groups):
+        self.activation_stages = [p if p is not None else part.PartGroup([]) for p in part_groups]
     
-    def addstage(self, activationset):
-        self.stages += [Stage(self.assembly_group, self.stages[-1], activationset)]
+    def _pushignition(self, ignition_group):
+        self.activation_stages[-1].addpart(ignition_group)
     
-    def addpart(self, part):
-        self.part_group.parts.append(part)
-        return self
+    def _popignition(self):
+        ign = self.activation_stages[-1]
+        self.activation_stages[-1] = part.PartGroup([])
+        return ign
     
-    def addengine(self, part):
-        self.addpart(part)
-        self.engines.append(part)
-        return self
+    def _popsep(self):
+        sep = self.activation_stages[0]
+        self.activation_setages = self.activation_stages[1:]
+        return sep
     
-    def addchute(self, part):
-        self.addpart(part)
-        self.addstage([part])
-        return self
-    
-    def addstack(self, seppart):
-        self.linkengines()
-        self.addstage([seppart] + self.engines)
-        assembly = Assembly(self)
-        assembly.addpart(seppart)
-        return assembly
-    
-    def addbooster(self, seppart, feedpart):
-        self.linkengines()
-        self.addstage([seppart] + [feedpart] + self.engines)
-        
-        feedpart.link(assembly.part_group, self.part_group)
-        assembly = Assembly(self)
-        assembly.addpart(seppart)
-        assembly.addpart(feedpart)
-        assembly.engines += self.engines
-        return assembly
-    
-    def finish(self):
-        self.linkengines()
-        self.addstage(self.engines)
-        return self
+    def autolinkengines(self):
+        for engine in self.partsbyclass('engine'):
+            if engine.tank is None:
+                engine.link(self)
 
-class Stage(object):
-    def __init__(self, partgroup, next, activationset):
-        self.partgroup = partgroup
-        self.next = next
-        self.activationset = activationset
+
+class Assembly(object):
+    def __init__(self, assembly_stages):
+        self.assembly_stages = assembly_stages
     
     @property
-    def mass(self):
-        return self.partgroup.mass
+    def first(self):
+        return self.assembly_stages[-1]
     
     @property
-    def dragcoef(self):
-        return self.partgroup.dragcoef
+    def last(self):
+        return self.assembly_stages[0]
     
-    def start(self):
-        for part in self.activationset:
-            part.activate()
+    @staticmethod
+    def stack(top, bottom):
+        top.last._pushignition(bottom.first._popsep())
+        return Assembly(top.assembly_stages + bottom.assembly_stages)
+    
+    @staticmethod
+    def booster(core, stage, feed_part=None):
+        stage.last._pushignition(core.last._popignition())
+        if feed_part is not None:
+            feed_part.link(stage, core)
+            stage.addpart(feed_part)
+            core.activation_stages[-1].addpart(feed_part)
+        return Assembly.stack(core, stage)
+
+
+def single_assembly(part_list, name=None, stages=['seperation', 'ignition']):
+    stage = AssemblyStage(part_list, name)
+    stage.setstages(stage[s] for s in stages)
+    return Assembly([stage])
+
+stack_assembly = Assembly.stack
+booster_assembly = Assembly.booster
 
 
 class Vessle(body.Body):

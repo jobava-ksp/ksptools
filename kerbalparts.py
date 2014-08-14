@@ -1,4 +1,4 @@
-from ksptools.part import Catalogue, ResourceType, CrewPodPartType, ProbePodPartType, FuelTankPartType, EnginePartType
+from ksptools.part import Catalogue, ResourceType, CrewPodPartType, ProbePartType, FuelTankPartType, EnginePartType
 from ksptools.part import FeedPartType
 
 kerbalparts = Catalogue()
@@ -16,17 +16,17 @@ kerbalparts.add(ResourceType('xenon', 'Xenon Gas', 4, 0.1, 'priority'))
 
 ## CrewPodPartType(name, title, radialsize, drycost, drymass, ceofdrag, kerbals, torque, resources) ##
 
-kerbalparts.add(CrewPodPartType('mk1_cockpit', 'Mk1 Cockpit', [None, 'small'], 2191, 1.25e+3, 0.1, 1, 10, [kerbalparts.monoprop(7.5), kerbalparts.charge(50)]))
-kerbalparts.add(CrewPodPartType('mk2_cockpit', 'Mk2 Cockpit', ['small', 'small'], 1591, 1.0e+3, 0.08, 1, 10, [kerbalparts.monoprop(7.5), kerbalparts.charge(50)]))
-kerbalparts.add(CrewPodPartType('mk3_cockpit', 'Mk3 Cockpit', ['small', 'Mk3'], 3564, 3.5e+3, 0.15, 3, 10, [kerbalparts.monoprop(30.0), kerbalparts.charge(50)]))
-kerbalparts.add(CrewPodPartType('mk1_pod', 'Command Pod Mk1', ['tiny', 'small'], 588.0, 0.8e+3, 0.15, 1, 5, [kerbalparts.monoprop(10.0), kerbalparts.charge(50)]))
-kerbalparts.add(CrewPodPartType('mk12_pod', 'Mk1-2 Command Pod', ['small', 'large'], 3764, 4.0e+3, 0.15, 3, 15, [kerbalparts.monoprop(30.0), kerbalparts.charge(50)]))
-kerbalparts.add(CrewPodPartType('mk1_lander', 'Mk1 Lander-can', ['small', 'small'], 1482, 0.6e+3, 0.2, 1, 3, [kerbalparts.monoprop(15.0), kerbalparts.charge(50)]))
-kerbalparts.add(CrewPodPartType('mk2_lander', 'Mk2 Lander-can', ['large', 'large'], 3202, 2.5e+3, 0.15, 2, 15, [kerbalparts.monoprop(40.0), kerbalparts.charge(50)]))
+kerbalparts.add(CrewPodPartType('mk1cockpit', 'Mk1 Cockpit', [None, 'small'], 2191, 1.25e+3, 0.1, 1, 10, [kerbalparts.monoprop(7.5), kerbalparts.charge(50)]))
+kerbalparts.add(CrewPodPartType('mk2cockpit', 'Mk2 Cockpit', ['small', 'small'], 1591, 1.0e+3, 0.08, 1, 10, [kerbalparts.monoprop(7.5), kerbalparts.charge(50)]))
+kerbalparts.add(CrewPodPartType('mk3cockpit', 'Mk3 Cockpit', ['small', 'Mk3'], 3564, 3.5e+3, 0.15, 3, 10, [kerbalparts.monoprop(30.0), kerbalparts.charge(50)]))
+kerbalparts.add(CrewPodPartType('mk1pod', 'Command Pod Mk1', ['tiny', 'small'], 588.0, 0.8e+3, 0.15, 1, 5, [kerbalparts.monoprop(10.0), kerbalparts.charge(50)]))
+kerbalparts.add(CrewPodPartType('mk12pod', 'Mk1-2 Command Pod', ['small', 'large'], 3764, 4.0e+3, 0.15, 3, 15, [kerbalparts.monoprop(30.0), kerbalparts.charge(50)]))
+kerbalparts.add(CrewPodPartType('mk1lander', 'Mk1 Lander-can', ['small', 'small'], 1482, 0.6e+3, 0.2, 1, 3, [kerbalparts.monoprop(15.0), kerbalparts.charge(50)]))
+kerbalparts.add(CrewPodPartType('mk2lander', 'Mk2 Lander-can', ['large', 'large'], 3202, 2.5e+3, 0.15, 2, 15, [kerbalparts.monoprop(40.0), kerbalparts.charge(50)]))
 kerbalparts.add(CrewPodPartType('copula', 'PPD-12 Copula Module', ['small', 'large'], 3188, 4.5e+3, 0.4, 1, 9, [kerbalparts.monoprop(10.0), kerbalparts.charge(200)]))
 kerbalparts.add(CrewPodPartType('seat', 'EAS-1 External Command Seat', [None], 200, 0.05e+10, 0.05, 1, 0, []))
 
-## ProbePodPartType(name, title, radialsize, drycost, drymass, ceofdrag, torque, resources) ##
+## ProbePartType(name, title, radialsize, drycost, drymass, ceofdrag, torque, resources) ##
 
 kerbalparts.add(ProbePartType('qbe_probe', 'Probodobodyne QBE', ['tiny', 'tiny'], 600, 0.08e+3, 0.15, 0.5, [kerbalparts.charge(10)]))
 kerbalparts.add(ProbePartType('hecs_probe', 'Probodobodyne HECS', ['tiny', 'tiny'], 450, 0.1e+3, 0.15, 0.5, [kerbalparts.charge(10)]))
@@ -57,7 +57,7 @@ kerbalparts.add(FuelTankPartType('flr1', 'FL-R1 RCS Fuel Tank', ['large', 'large
 kerbalparts.add(FuelTankPartType('flr10', 'FL-R10 RCS Fuel Tank', ['tiny', 'tiny'], 340, 0.05e+3, 0.2, [kerbalparts.monoprop(50)]))
 kerbalparts.add(FuelTankPartType('flr25', 'FL-R25 RCS Fuel Tank', ['small', 'small'], 680, 0.15e+3, 0.2, [kerbalparts.monoprop(100)]))
 
-kerbalparts.add(FeedPartType('ftx', 'FTX-2 External Fuel Duct', [None], 150, 0.05e+3, 0.2))
+kerbalparts.add(FeedPartType('ftx', 'FTX-2 External Fuel Duct', 150, 0.05e+3, 0.2))
 
 ## EnginePartType(name, title, radialsize, drycost, drymass, coefdrag, fueltypes, minthrust, maxthrust, isp, ispatm, resources=[]) ##
 
@@ -87,6 +87,6 @@ kerbalparts.add(EnginePartType('srb', 'S1 SRB-KD25K', ['small', 'small'], 300, 3
 
 del liquid_fuel_req
 
-del Catalogue, ResourceType, CrewPodPartType, ProbePodPartType, FuelTankPartType, EnginePartType
+del Catalogue, ResourceType, CrewPodPartType, ProbePartType, FuelTankPartType, EnginePartType
 del FeedPartType
 
