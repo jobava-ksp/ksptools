@@ -4,30 +4,82 @@ from . import part
 from . import body
 from .util import unit, unitk, reject
 
+class Assembly(object):
+    def __init__(self, prev_assembly=None):
+        self.prev_assembly = prev_assembly
+        self.engines = []
+        
+        self.part_group = part.PartGroup([])
+        if prev_assembly is not None:
+            self.assembly_group = part.group(None, self.part_group, prev_assembly.assembly_group)
+            self.stages = prev_assembly.stages
+        else:
+            self.assembly_group = self.part_group
+            self.stages = [None]
+    
+    def linkengines(self):
+        for engine_group in self.engines:
+            for engine in engine_group.partsbyclass('engine'):
+                if engine.tank is None:
+                    engine.link(self.part_group)
+    
+    def addstage(self, activationset):
+        self.stages += [Stage(self.assembly_group, self.stages[-1], activationset)]
+    
+    def addpart(self, part):
+        self.part_group.parts.append(part)
+        return self
+    
+    def addengine(self, part):
+        self.addpart(part)
+        self.engines.append(part)
+        return self
+    
+    def addchute(self, part):
+        self.addpart(part)
+        self.addstage([part])
+        return self
+    
+    def addstack(self, seppart):
+        self.linkengines()
+        self.addstage([seppart] + self.engines)
+        assembly = Assembly(self)
+        assembly.addpart(seppart)
+        return assembly
+    
+    def addbooster(self, seppart, feedpart):
+        self.linkengines()
+        self.addstage([seppart] + [feedpart] + self.engines)
+        
+        feedpart.link(assembly.part_group, self.part_group)
+        assembly = Assembly(self)
+        assembly.addpart(seppart)
+        assembly.addpart(feedpart)
+        assembly.engines += self.engines
+        return assembly
+    
+    def finish(self):
+        self.linkengines()
+        self.addstage(self.engines)
+        return self
+
 class Stage(object):
-    def __init__(self, parts, activeset, next):
-        self.next = next                 # next stage
-        self.parts = parts               # set of physically attached parts
-        self.activeset = activeset       # set of active parts
+    def __init__(self, partgroup, next, activationset):
+        self.partgroup = partgroup
+        self.next = next
+        self.activationset = activationset
     
-    def total_mass(self):
-        return self.part.mass + sum(n.total_mass() for n in self.next)
-    
-    def total_dragcoef(self):
-        return self.part.dragcoef + sum(n.total_dragcoef() for n in self.next)
-    
+    @property
     def mass(self):
-        raise sum(p.mass for p in self.parts)
+        return self.partgroup.mass
     
+    @property
     def dragcoef(self):
-        return sum(p.dragceof() for p in parts)
-    
-    def thrust_func(self):
-        def func(throttle, atm):
-            return unitk * sum(e.thrust(throttle, atm) for e in self.activeset)
+        return self.partgroup.dragcoef
     
     def start(self):
-        raise NotImplementedError
+        for part in self.activationset:
+            part.activate()
 
 
 class Vessle(body.Body):
@@ -38,14 +90,11 @@ class Vessle(body.Body):
         self.throttle = 0.5
         
     def prestep(self, world_time, dt):
-        self.mass = stages[-1].total_mass()
-        self.dragcoef = stages[-1].total_dragcoef(
-        #...
+        pass
     
     def poststep(self, world_time, dt):
         pass
     
     def bodyforce(self, world_time, dt):
-        Ft = self.stages[-1].thrust_func()
-        return self.orientation * Ft
+        pass
 
