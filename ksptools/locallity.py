@@ -1,4 +1,4 @@
-from numpy import array, cos, sin, arctan
+from numpy import array, cos, sin, arccos, arcsin, arctan
 from numpy.linalg import norm
 
 from . import orbit
@@ -6,40 +6,31 @@ from .util import Ax, rotvec, uniti, unitj, unitk
 
 
 def rv_to_llav(pos, vel, refbody, epoch):
-        # rotation
-        t = (2*pi/(refbody.sidereal_rate)) * epoch
-        Ar = rotvec(u,-t)
-        r = Ax(Ar, pos)
+        alt = norm(pos) - refbody.eq_radius
+        t = ((2*pi/refbody.sidereal_rate) * epoch) % (2*pi)  # angle of planetary rotation
+        R = rotz(t)                                          # rotation matrix for planetary rotation
         
-        # fixed position
-        alt = norm(r) - refbody.eq_radius
-        x,y,z = r
-        lat = arcsin(z/norm(r))
-        lon = arccos(y/r)
-        if y < 0:
-            lon = 2*pi - lon
+        r = Ax(R.T, pos)                                     # rotate position into local position at t0
+        v = Ax(R.T, vel)                                     # rotate velocity into local velocity at t0
         
-        # rotate velocity
-        Av = rotvec(unitj, -lat)
-        v = Ax(Av*Ar, vel)
+        lon = arccos(r[0]/norm(r))
+        lat = arcsin(r[2]/norm(r))
+        if lat < 0:
+            lon = -lon
+        
+        L = rotz(lon)*roty(-lat)                             # rotation matrix for gecentric -> local position (at t0)
+        v = Ax(L.T, v)
         
         return lon, lat, alt, v
 
 def llav_to_rv(lon, lat, alt, vel, refbody, epoch):
-        # fixed position
         rad = alt + refbody.eq_radius
-        x = rad*cos(lat)*cos(lon)
-        y = rad*cos(lat)*sin(lon)
-        z = rad*sin(lat)
-        fixed = array([x,y,z])
+        t = ((2*pi/refbody.sidereal_rate) * epoch) % (2*pi)  # angle of planetary rotation
+        R = rotz(t)                                          # rotation matrix for planetary rotation
+        L = rotz(lon)*roty(-lat)                             # rotation matrix for gecentric -> local position (at t0)
         
-        # rotation
-        t = (2*pi/(refbody.sidereal_rate)) * epoch
-        Ar = rotvec(u,t)
-        Av = rotvec(unitj, lat)
-        
-        r = Ax(Ar, fixed)
-        v = Ax(Ar*Av, vel)
+        r = Ax(R*L, rad*uniti)
+        v = Ax(R*L, vel)
         return r, v
 
 class State(object):

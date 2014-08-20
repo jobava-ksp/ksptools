@@ -67,19 +67,45 @@ stack_assembly = Assembly.stack
 booster_assembly = Assembly.booster
 
 
+class Stage(object):
+    def __init__(self, part, active_set, next=None):
+        self.part = part
+        self.active_set = active_set
+        self.next = next
+    
+    def start(self):
+        for part in self.active_set:
+            part.activate()
+        return self
+    
+    def drop(self):
+        if self.next:
+            return self.next.start()
+        return None
+    
+    @property
+    def mass(self):
+        return self.part.mass
+    
+    @property
+    def ceofdrag(self):
+        return self.part.ceofdrag
+
+
 class Vessle(body.Body):
-    def __init__(self, kename, name, state, stages):
-        body.Body.__init__(self, keyname, name, state, orientation, mass=0.0)
-        self.stages = stages
+    def __init__(self, kename, name, state, stages, orientation):
+        body.Body.__init__(self, keyname, name, state, mass=0.0)
+        self.stage = stage
         self.orientation = orientation
         self.throttle = 0.5
         
     def prestep(self, world_time, dt):
-        pass
+        self.ceofdrag = self.stage.coefdrag
+        self.mass = self.stage.mass
     
     def poststep(self, world_time, dt):
         pass
     
     def bodyforce(self, world_time, dt):
-        pass
-
+        
+        #pass
