@@ -64,7 +64,6 @@ class KeplerOrbit(object):
     @classmethod
     def circular_equitorial(cls, u, r, lon_epoch, epoch=0.):
         return cls(u, r, 0.0, 0.0, lon_epoch, 0.0, 0.0, epoch)
-        
 
     def mean_anomaly(self, t):
         return self.M0 + self.mean_motion * (t - self.epoch)
@@ -184,4 +183,21 @@ class KeplerOrbit(object):
         else:
             epoch = 0.0
         return cls.from_planet_paremters(u, a, e, i, arg_pe, lon_asc, M, epoch)
-        
+    
+    def __str__(self):
+        return '{' + '{:e} m, {:f}, {:f} rad, {:f} rad, {:f} rad,[{:e} rad@{:e} sec]'.format(
+                self.semi_major_axis,
+                self.eccentricity,
+                self.orientation.theta,
+                self.orientation.phi,
+                self.orientation.sci,
+                self.M0,
+                self.epoch) + '}'
+
+
+class Patch(object):
+    def __init__(self, kepler, enter, exit):
+        self.kepler = kepler
+        self.enter = enter
+        self.exit = exit
+

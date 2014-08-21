@@ -89,7 +89,10 @@ class Rotation(object):
 
 class EulerAngle(Rotation):    
     def __init__(self, p, t, s):
-        Ap = rotz(p)  
+        self.phi = p
+        self.theta = t
+        self.sci = s
+        Ap = rotz(p)
         At = rotx(t)
         As = rotz(s)
         Rotation.__init__(self, Ap*At*As)
@@ -97,6 +100,9 @@ class EulerAngle(Rotation):
 
 class RollPitchYaw(Rotation):
     def __init__(self, r, p, y):
+        self.roll = r
+        self.pitch = p
+        self.yaw = y
         Ay = rotz(y)
         Ap = rotx(p)
         Ar = roty(r)

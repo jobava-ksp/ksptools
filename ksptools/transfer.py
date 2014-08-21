@@ -10,7 +10,7 @@ from numpy import spacing, finfo
 from numpy.linalg import norm, solve
 
 from .util import arcvec, cossin, rotz, rotx, Ax
-from .orbit import KeplerOrbit
+from .orbit import KeplerOrbit, Patch
 
 TransferParameters = collections.namedtuple("TransferParameters", ['u','r1','v1','r2','v2','t1','t2', 'dta'])
 
@@ -37,15 +37,6 @@ class SemiLatisSolver(TransferSolver):
             p = spacing(params.u)
         
         return p, a
-    
-    #def checka(self, a, p, params):
-    #    if abs(a) == float('inf'):
-    #        #print(a)
-    #        return (finfo(a).max)**(1/3.)
-    #    #assert(a != 0)
-    #    if a is None:
-    #        return 0
-    #    return a
     
     def start(self, params):
         cosdt, sindt, _ = cossin(params.dta)
@@ -124,14 +115,14 @@ class SemiLatisSolver(TransferSolver):
         return scipy.optimize.approx_fprime(p, lambda i: self.tof(i, params), eps)
 
 
-def solve_transfer(u, r1, v1, r2, v2, t1, t2, method='ballistic', solver=SemiLatisSolver, output='kepler'):
+def solve_transfer(u, r1, v1, r2, v2, t1, t2, method='ballistic', solver=SemiLatisSolver, output='patch'):
     if method == 'ballistic':
         dta = arcvec(r1, r2)
         mnsol, err, solv1, solv2 = solve_transfer_planar(TransferParameters(u, r1, v1, r2, v2, t1, t2, dta), solver())
         if output == 'debug':
             return mnsol, err, solv1, solv2
-        elif output == 'kepler':
-            return KeplerOrbit.from_rvu(r1, solv1, u, t1)
+        elif output == 'patch':
+            return Patch(KeplerOrbit.from_rvu(r1, solv1, u, t1), t1, t2)
 
 def solve_transfer_planar(params, solver):
     x = solver.start(params)
@@ -147,18 +138,17 @@ def solve_transfer_planar(params, solver):
 
 
 def solve_flyby(u, distance, vsoi, soi, eta, insertion=False):
-    #vp = sqrt(norm(vsoi)**2 + 2*u/distance) # orbital speed at pe
+    ## Velocity at periapsis ##
     vp = sqrt(norm(vsoi)**2 + 2*u*((norm(soi)-distance)/(norm(soi)*distance)))
+    
     ## Basic Orbital Parameters ##
-    
-    a = 1/(2/distance-(vp**2)/u)            # semi major axis
-    e = (distance*vp**2)/u - 1              # eccentricity
-    cost = (a*(1-e**2)-soi)/(e*soi)         # cosine of true anomaly passing soi
-    
-    t = arccos(cost)                # true anomaly (assuming an ejection)
-    if insertion:                   # fix for insertion
+    a = 1/(2/distance-(vp**2)/u)     # semi major axis
+    e = (distance*vp**2)/u - 1       # eccentricity
+    cost = (a*(1-e**2)-soi)/(e*soi)  # cosine of true anomaly passing soi
+    t = arccos(cost)                 # true anomaly (assuming an ejection)
+    if insertion:                    # fix for insertion
         t = -t
-    sint = sin(t)                   # sine of true anomaly
+    sint = sin(t)                    # sine of true anomaly
     
     ## Orientation Parameters ##
     fa = arctan(e*sint/(1+e*cost))
@@ -178,20 +168,16 @@ def solve_flyby(u, distance, vsoi, soi, eta, insertion=False):
         cos_lonasc, sin_lonasc = solve(array([[-vx, cos(inc)*vy],[-cos(inc)*vy, -vx]]), array([vi, vj]))
         lonasc = arctan2(sin_lonasc, cos_lonasc)
     A = rotz(lonasc)*rotx(inc)*rotz(argpe)       # rotation matrix
-    print(inc, argpe, lonasc)
     
     ## Position at Soi ##
-    
-    rplanar = array([cost, sint, 0])*soi      # planar position
+    rplanar = array([cost, sint, 0])*soi  # planar position
     rsoi = Ax(A, rplanar)                 # position at soi
     
     ## Position at Pe
-    
     rplanar = array([1, 0, 0])*distance   # planar position
     rpe = Ax(A, rplanar)                  # position at pe
     
     ## Time offset ##
-    
     coshF = (e + cost)/(1+e*cost)   # cosine hyperbolic of eccentric anomaly
     F = arccosh(coshF)              # eccentric anomaly (assuming ejection)
     mm = sqrt(u/(-a)**3)            # mean motion
@@ -201,3 +187,4 @@ def solve_flyby(u, distance, vsoi, soi, eta, insertion=False):
         return vp, rpe, rsoi, eta - delta_time
     else:
         return vp, rpe, rsoi, eta + delta_time
+
