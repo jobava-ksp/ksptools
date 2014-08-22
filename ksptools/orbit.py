@@ -14,14 +14,12 @@ class KeplerOrbit(object):
         self.eccentricity = e
         self.semi_latus_rectum = a*(1-e**2)
         self.semi_major_axis = a
-        self.epoch = epoch
         self.orientation = EulerAngle(lon_asc, inc, arg_pe)
         if a > 0:
             self.mean_motion = sqrt(u/self.semi_major_axis**3)
-            self.M0 = M
         elif a < 0:
             self.mean_motion = sqrt(u/(-self.semi_major_axis)**3)
-            self.M0 = M
+        self.epoch = epoch - M/self.mean_motion
      
     @classmethod
     def from_planet_paremters(cls, u, a, e, i, arg_pe, lon_asc, M, epoch=0.):
@@ -66,7 +64,7 @@ class KeplerOrbit(object):
         return cls(u, r, 0.0, 0.0, lon_epoch, 0.0, 0.0, epoch)
 
     def mean_anomaly(self, t):
-        return self.M0 + self.mean_motion * (t - self.epoch)
+        return self.mean_motion * (t - self.epoch)
     
     def eccentric_anomaly(self, t):
         M = self.mean_anomaly(t)
@@ -99,6 +97,16 @@ class KeplerOrbit(object):
             else:
                 return ta
         raise Exception("Peribolic orbits are not supported")
+    
+    def time_at_true_anomaly(self, ta):
+        e = self.eccentricity
+        if self.semi_major_axis > 0:
+            E = arccos((e + cos(ta))/(1+e*cos(ta)))
+            M = E - e*sin(E)
+        else:
+            F = arccosh((e + cos(ta))/(1+e*cos(ta)))
+            M = e*sinh(F) - F
+        return M/self.mean_motion + self.epoch
     
     def prograde(self, t, theta=None):
         e = self.eccentricity
@@ -185,13 +193,12 @@ class KeplerOrbit(object):
         return cls.from_planet_paremters(u, a, e, i, arg_pe, lon_asc, M, epoch)
     
     def __str__(self):
-        return '{' + '{:e} m, {:f}, {:f} rad, {:f} rad, {:f} rad,[{:e} rad@{:e} sec]'.format(
+        return '{' + '{} m, {}, {} rad, {} rad, {} rad, {} sec'.format(
                 self.semi_major_axis,
                 self.eccentricity,
                 self.orientation.theta,
                 self.orientation.phi,
                 self.orientation.sci,
-                self.M0,
                 self.epoch) + '}'
 
 
