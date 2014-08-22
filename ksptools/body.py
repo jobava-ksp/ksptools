@@ -9,7 +9,7 @@ from .locallity import OrbitalState, FixedState
 from .util import unit
 
 class Body(object):
-    def __init__(self, keyname, name, state, mass=None, u=None, coefdrag=0):
+    def __init__(self, keyname, name, position, mass=None, u=None):
         self.keyname = keyname
         self.name = name
         if u is None:
@@ -18,9 +18,8 @@ class Body(object):
         else:
             self.std_g_param = u
             self.mass = u / 6.67384e-11
-        self._state = state
+        self._state = position
         self.sattelites = set()
-        self.coefdrag = coefdrag
     
     def __eq__(self, other):
         return self.keyname == other.keyname
@@ -28,76 +27,76 @@ class Body(object):
     def __hash__(self):
         return hash(self.keyname)
     
-    @property
-    def kepler(self):
-        return self._state.kepler
+    #@property
+    #def kepler(self):
+    #    return self._state.kepler
     
-    @property
-    def velocity(self):
-        return self._state.velocity
+    #@property
+    #def velocity(self):
+    #    return self._state.velocity
     
-    @property
-    def position(self):
-        return self._state.position
+    #@property
+    #def position(self):
+    #    return self._state.position
     
-    @property
-    def global_position(self):
-        p = self._state.refbody
-        r = self._state.position
-        if p is not None:
-            return r + p.global_position
-        else:
-            return r
+    #@property
+    #def global_position(self):
+    #    p = self._state.refbody
+    #    r = self._state.position
+    #    if p is not None:
+    #        return r + p.global_position
+    #    else:
+    #        return r
     
-    @property
-    def global_velocity(self):
-        p = self._state.refbody
-        v = self._state.velocity
-        if p is not None:
-            return v
-        else:
-            return v + p.global_velocity
+    #@property
+    #def global_velocity(self):
+    #    p = self._state.refbody
+    #    v = self._state.velocity
+    #    if p is not None:
+    #        return v
+    #    else:
+    #        return v + p.global_velocity
     
-    @property
-    def parent(self):
-        return self._state.refbody
+    #@property
+    #def parent(self):
+    #    return self._state.refbody
     
-    @property
-    def period(self):
-        return self._state.period
+    #@property
+    #def period(self):
+    #    return self._state.period
     
-    @property
-    def surfnorm(self):
-        return unit(self._state.position)
+    #@property
+    #def surfnorm(self):
+    #    return unit(self._state.position)
     
-    def envforce(self, r, v, nbody=False, system=None):
-        if nbody is None:
-            Fg = (-unit(r))*(self.mass * self.refbody.std_g_param)/np.dot(r,r)
-        else:
-            raise NotImplementedError
-        if self.refbody.atmposphere is not None and npla.norm(r) < (self.eq_radius + self.atmosphere.height):
-            Fd = (-unit(v))*(0.5*dot(v,v)*self.coefdrag)
-        else:
-            Fd = np.array([0.,0.,0.])
-        return Fd + Fg
+    #def envforce(self, r, v, nbody=False, system=None):
+    #    if nbody is None:
+    #        Fg = (-unit(r))*(self.mass * self.refbody.std_g_param)/np.dot(r,r)
+    #    else:
+    #        raise NotImplementedError
+    #    if self.refbody.atmposphere is not None and npla.norm(r) < (self.eq_radius + self.atmosphere.height):
+    #        Fd = (-unit(v))*(0.5*dot(v,v)*self.coefdrag)
+    #    else:
+    #        Fd = np.array([0.,0.,0.])
+    #    return Fd + Fg
     
-    def step(self, world_time, dt, nbody=False, system=None):
-        r0, v0 = self._state.rv(self.epoch)
-        envforce = self.envforce(r0, v0, nbody, system)
-        bodyforce = self.bodyforce(world_time, dt)
-        a = (envforce + bodyforce) / self.mass
-        r = r0 + v0*dt + a*(dt**2)/2
-        v = v0 + a*dt
-        self._state = type(self._state).from_rv(self.refbody, r, v, self.body, self.epoch + dt)
+    #def step(self, world_time, dt, nbody=False, system=None):
+    #    r0, v0 = self._state.rv(self.epoch)
+    #    envforce = self.envforce(r0, v0, nbody, system)
+    #    bodyforce = self.bodyforce(world_time, dt)
+    #    a = (envforce + bodyforce) / self.mass
+    #    r = r0 + v0*dt + a*(dt**2)/2
+    #    v = v0 + a*dt
+    #    self._state = type(self._state).from_rv(self.refbody, r, v, self.body, self.epoch + dt)
     
-    def bodyforce(self, world_time, dt):
-        raise NotImplementedError
+    #def bodyforce(self, world_time, dt):
+    #    raise NotImplementedError
     
-    def prestep(self, world_time, dt):
-        raise NotImplementedError
+    #def prestep(self, world_time, dt):
+    #    raise NotImplementedError
     
-    def poststep(self, world_time, dt):
-        raise NotImplementedError
+    #def poststep(self, world_time, dt):
+    #    raise NotImplementedError
 
 
 class CelestialBody(Body):

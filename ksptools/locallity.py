@@ -53,6 +53,28 @@ class State(object):
         raise NotImplementedError
     
     @property
+    def position(self):
+        raise NotImplementedError
+    
+    @property
+    def velocity(self):
+        raise NotImplementedError
+    
+    @property
+    def global_position(self):
+        if self.refbody != None:
+            return self.refbody.global_position + self.position
+        else:
+            return self.position
+    
+    @property
+    def global_velocity(self):
+        if self.refbody != None:
+            return self.refbody.global_velocity + self.velocity
+        else:
+            return self.velocity
+    
+    @property
     def apoapsis_hieght(self):
         return norm(self.apoapsis)
     
@@ -127,17 +149,17 @@ class OrbitalState(State):
         return self._geocentric
     
     @classmethod
-    def from_rv(cls, refbody, r, v, body, epoch):
+    def from_vectors(cls, refbody, r, v, body, epoch):
         kep = KeplerOrbit.from_rvu(r, v, refbody.std_g_param, epoch)
         return cls(refbody, kep, body, epoch)
     
     @property
     def position(self):
-        return self._kepler.r(self.epoch)
+        return self._kepler.position(self.epoch)
     
     @property
     def velocity(self):
-        return self._kepler.v(self.epoch)
+        return self._kepler.velocity(self.epoch)
     
     @property
     def rv(self):
@@ -194,7 +216,7 @@ class VectorState(State):
         return self._geocentric
     
     @classmethod
-    def from_rv(cls, refbody, r, v, body, epoch):
+    def from_vectors(cls, refbody, r, v, body, epoch):
         return cls(refbody, r, v, body, epoch)
     
     @property
@@ -232,7 +254,7 @@ class GeocentricState(State):
         return self
     
     @classmethod
-    def from_rv(cls, refbody, r, v, body, epoch):
+    def from_vectors(cls, refbody, r, v, body, epoch):
         lon, lat, alt, vel = rv_to_llav(r, v, refbody, refbody, refbody.pu, epoch)
         return cls(self.refbody, lon, lat, alt, vel, body, epoch)
     

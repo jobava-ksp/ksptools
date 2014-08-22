@@ -148,7 +148,7 @@ class KeplerOrbit(object):
         else:
             return (pi-M) / self.mean_motion
     
-    def r(self, t, theta=None):
+    def position(self, t, theta=None):
         from .util import cossin
         from numpy import cos
         p,e = self.semi_latus_rectum, self.eccentricity
@@ -157,7 +157,7 @@ class KeplerOrbit(object):
         l = p/(1+e*cos(theta))
         return self.orientation * ((cossin(theta))*l)
     
-    def v(self, t, theta=None):
+    def velocity(self, t, theta=None):
         p,e,a,u = self.semi_latus_rectum, self.eccentricity, self.semi_major_axis, self.GM
         if theta is None:
             theta = self.true_anomaly(t)
@@ -169,7 +169,7 @@ class KeplerOrbit(object):
     def rv(self, t, theta=None):
         if theta is None:
             theta = self.true_anomaly(t)
-        return self.r(t, theta), self.v(t, theta)
+        return self.position(t, theta), self.velocity(t, theta)
     
     def period(self):
         if self.semi_major_axis > 0:
@@ -201,10 +201,4 @@ class KeplerOrbit(object):
                 self.orientation.sci,
                 self.epoch) + '}'
 
-
-class Patch(object):
-    def __init__(self, kepler, enter, exit):
-        self.kepler = kepler
-        self.enter = enter
-        self.exit = exit
 

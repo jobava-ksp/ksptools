@@ -125,22 +125,24 @@ class SemiLatisSolver(TransferSolver):
         return scipy.optimize.approx_fprime(p, lambda i: self.tof(i, params), eps)
 
 
-def solve_transfer(u, r1, v1, r2, v2, t1, t2, method='ballistic', solver=SemiLatisSolver, output='patch'):
+def solve_transfer(u, r1, v1, r2, v2, t1, t2, method='ballistic', solver=SemiLatisSolver, output='kepler'):
     if method == 'ballistic':
         dta = arcvec(r1, r2)
         mnsol, err, solv1, solv2 = solve_transfer_planar(TransferParameters(u, r1, v1, r2, v2, t1, t2, dta), solver())
         if output == 'pass':
             return mnsol, err, solv1, solv2
-        elif output == 'patch':
-            return Patch(KeplerOrbit.from_rvu(r1, solv1, u, t1), t1, t2)
+        elif output == 'kepler':
+            return [(KeplerOrbit.from_rvu(r1, solv1, u, t1), t1, t2)]
     elif method == 'planechange':
-        R, Rinv, delta_ta1 = planechange_matrix(u, r1, v1, r2, v2)
+        R, Rinv, delta_ta1, inc = solve_planechange(u, r1, v1, r2, v2)
         mnsol, err, solv1, solv2 = solve_transfer(u, r1, v1, Ax(R, r2), Ax(R, v2), t1, t2, method='ballistic', solver=solver, output='pass')
         kep1 = KeplerOrbit.from_rvu(r1, solv1, u, t1)
         kep2 = KeplerOrbit.from_rvu(r2, Ax(Rinv, solv2), u, t2)
         tc = kep1.time_at_true_anomaly(delta_ta1 + kep1.true_anomaly(t1))
-        if output == 'patch':
-            return Patch(kep1, t1, tc, Patch(kep2, tc, t2))
+        if output == 'pass':
+            return mnsol, err, solv1, solv2, kep2.velocity(tc) - kep1.velocity(tc)
+        if output == 'kepler':
+            return [(kep1, t1, tc), (kep2, tc, t2)]
 
 def solve_transfer_planar(params, solver):
     x = solver.start(params)
@@ -154,7 +156,6 @@ def solve_transfer_planar(params, solver):
     solv1, solv2 = solver.solution(p.x[0], params)
     return p, err, solv1, solv2
 
-
 def solve_planechange(u, r1, v1, r2, v2):
     normal1 = unit(cross(r1,v1))
     normal2 = unit(cross(r2,v2))
@@ -163,7 +164,7 @@ def solve_planechange(u, r1, v1, r2, v2):
     sint = norm(cross(normal1,normal2)/(norm(normal1)*norm(normal2)))
     R = rotvec(axis, -arcsin(sint))
     Rinv = rotvec(axis, arcsin(sint))
-    return R, Rinv, ta, arcsin(
+    return R, Rinv, ta, arcsin(sint)
 
 
 def solve_flyby(u, distance, vsoi, soi, eta, insertion=False):
