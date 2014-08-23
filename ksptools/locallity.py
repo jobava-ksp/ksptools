@@ -49,7 +49,7 @@ class State(object):
         raise NotImplementedError
     
     @classmethod
-    def _from_vectors(cls, refbody, r, v, body, epoch):
+    def from_vectors(cls, refbody, r, v, body, epoch):
         raise NotImplementedError
     
     @property
