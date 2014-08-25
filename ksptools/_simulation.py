@@ -8,22 +8,36 @@ class Controller(object):
     pass
 
 
+def getatmfunc(body):
+    if body.atmposhere is None:
+        return lambda x: 0
+    else:
+        return lambda r: body.atmposhere.atm(norm(r)-body.eq_radius)
+
+def getpfunc(body):
+    if body.atmposhere is None:
+        return lambda x: 0
+    else:
+        return lambda r: body.atmposhere.p(norm(r)-body.eq_radius)
+
 def accel_g(u, r):
     return -(u*unit(r))/dot(r,r)
 
 def accel_d(cf, pfunc, r, v):
     return -unit(v)*0.5*8e-3*cf*pfunc(r)*dot(v,v)
 
-def accel_f(D, engines, atmfunc, mass0, t0, t, r, v):
-    dt = t - t0
+def accel_f(d, engines, atmfunc, mass, r, v):
     thrust = sum(e.thrust for e in engines)
-    ff = sum(e.thrust/e.isp(atmfunc(r)) for e in engines)
-    return Ax(D, unit(r)) * (thrust/(mass0 - dt*ff))
+    ff = sum(norm(e.thrust)/e.isp(atmfunc(r)) for e in engines)
+    return d * (thrust/mass)
 
-def runpass(r0, v0, t0, mass
+def physics_pass(
 
 def run(initial_state, controller):
-    r0 = state.position
-    v0 = state.velocity
-    t0 = state.epoch
+    r = state.position
+    v = state.velocity
+    t = state.epoch
+    u = state.refbody.std_g_param
+    atmfunc = getatmfunc(state.refbody)
+    pfunc = getpfunc(state.refbody)
     
