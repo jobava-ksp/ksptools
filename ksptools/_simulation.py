@@ -1,3 +1,4 @@
+from itertools import count
 from numpy import dot
 from numpy.linalg import norm
 
@@ -13,6 +14,7 @@ class SimEngine(object):
         self.requestfuel = requestfuel_func
         self.drawfuel = drawfuel_func
         self.deplete = deplete_func
+        self._id = next(SimEngine._nextid)
 
     @property
     def thrust(self):
@@ -26,15 +28,38 @@ class SimEngine(object):
 
     def request_time(self, dt, atm):
         req_fuel = dt*self.ff(atm)
-        max_fuel = self.requestfuel(req_fuel)
+        max_fuel = self.requestfuel(self, req_fuel)
         return max(0, dt*(max_fuel/req_fuel))
 
     def draw_time(self, dt, atm):
         if dt <= 0:
-            self.deplete()
+            self.deplete(self)
         else:
             draw_fuel = dt*self.ff(atm)
-            self.drawfuel(draw_fuel)
+            self.drawfuel(self, draw_fuel)
+
+    def __hash__(self):
+        return self._id
+
+    def __eq__(self, other):
+        return self._id == other._id
+
+    _nextid = count()
+
+
+def engine(engineset, thrust, isp, isp_atm, tank):
+    def request_func(e, amount):
+        if amount > tank.quantity:
+            return amount
+        else:
+            return tank.quantity
+    def draw_func(e, amount):
+        tank.qunatity -= amount
+    def deplete_func(e):
+        engineset.remove(e)
+    new_eng = SimEngine(thrust, isp, isp_atm, request_func, draw_func, deplete_func)
+    engineset.add(new_eng)
+    return engineset
 
 
 class Controller(object):
