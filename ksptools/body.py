@@ -8,8 +8,14 @@ from . import atmosphere
 from .locallity import OrbitalState, FixedState
 from .util import unit
 
+
 class Body(object):
     def __init__(self, keyname, name, position, mass=None, u=None):
+        """
+        :type keyname: object
+        :type name: str
+        :type position: ksptools.locallity.State
+        """
         self.keyname = keyname
         self.name = name
         if u is None:
@@ -18,7 +24,7 @@ class Body(object):
         else:
             self.std_g_param = u
             self.mass = u / 6.67384e-11
-        self._state = position
+        self.state = position
         self.sattelites = set()
     
     def __eq__(self, other):
@@ -101,6 +107,13 @@ class Body(object):
 
 class CelestialBody(Body):
     def __init__(self, keyname, name, eq_radius, u, sidereal_rate, soi, body_atmosphere, body_orbit):
+        """
+        :type eq_radius: float
+        :type u: float
+        :type sidereal_rate: float
+        :type soi: float
+        :type body_atmosphere: ksptools.atmosphere.Atmosphere
+        """
         Body.__init__(self, keyname, name, body_orbit, u=u)
         self.eq_radius = eq_radius
         self.sidereal_rate = sidereal_rate
@@ -148,6 +161,7 @@ class CelestialBody(Body):
         else:
             return None
 
+
 class System(object):
     def __init__(self, bodies):
         self.bodies = dict((b.keyname, b) for b in bodies)
@@ -162,4 +176,4 @@ class System(object):
     
     def __setitem__(self, key, val):
         self.bodies[key] = val
-        
+
