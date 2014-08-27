@@ -5,7 +5,7 @@ import numpy.linalg as npla
 from . import orbit
 from . import atmosphere
 
-from .locallity import OrbitalState, FixedState
+from .locallity import OrbitalState, FixedState, GeocentricState
 from .util import unit
 
 
@@ -63,9 +63,9 @@ class Body(object):
     #    else:
     #        return v + p.global_velocity
     
-    #@property
-    #def parent(self):
-    #    return self._state.refbody
+    @property
+    def parent(self):
+        return self.state.refbody
     
     #@property
     #def period(self):
@@ -119,6 +119,9 @@ class CelestialBody(Body):
         self.sidereal_rate = sidereal_rate
         self.soi = soi
         self.atmosphere = body_atmosphere
+    
+    def geocentric(self, lon, lat, epoch, velocity=np.array([0,0,0]), alt=0, body=None):
+        return GeocentricState(self, lon, lat, alt, velocity, body, epoch)
     
     @classmethod
     def from_config(cls, conf_parser, section, system_dict):

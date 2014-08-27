@@ -10,7 +10,7 @@ from numpy import spacing, finfo
 from numpy.linalg import norm, solve
 
 from .util import arcvec, cossin, unit, rotz, rotx, rotvec, Ax
-from .orbit import KeplerOrbit, Patch
+from .orbit import KeplerOrbit
 
 TransferParameters = collections.namedtuple("TransferParameters", ['u','r1','v1','r2','v2','t1','t2', 'dta'])
 

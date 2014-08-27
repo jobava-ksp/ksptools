@@ -1,14 +1,15 @@
-from numpy import array, cos, sin, arccos, arcsin, arctan
+from numpy import array, cos, sin, arccos, arcsin, arctan, pi, matrix
 from numpy.linalg import norm
 
 from . import orbit
-from .util import Ax, rotvec, uniti, unitj, unitk
+from .util import Ax, rotvec, uniti, unitj, unitk, rotz, rotx, roty
 
 
 def rv_to_llav(pos, vel, refbody, epoch):
         alt = norm(pos) - refbody.eq_radius
-        t = ((2*pi/refbody.sidereal_rate) * epoch) % (2*pi)  # angle of planetary rotation
-        R = rotz(t)                                          # rotation matrix for planetary rotation
+        rate = ((2*pi)/refbody.sidereal_rate)
+        t = (rate * epoch) % (2*pi)                          # angle of planetary rotation
+        R = rotz(t)                                          # rotation matrix for planetary rotation (TODO: Euler angle)
         
         r = Ax(R.T, pos)                                     # rotate position into local position at t0
         v = Ax(R.T, vel)                                     # rotate velocity into local velocity at t0
@@ -18,20 +19,33 @@ def rv_to_llav(pos, vel, refbody, epoch):
         if lat < 0:
             lon = -lon
         
-        L = rotz(lon)*roty(-lat)                             # rotation matrix for gecentric -> local position (at t0)
-        v = Ax(L.T, v)
+        L = rotz(lon)*roty(lat)                              # rotation matrix for geocentric -> local position (at t0)
+        v = Ax(L.T, v)                                       # surface velocity corrected for rotation
         
-        return lon, lat, alt, v
+        
+        #vs = rate*norm(r)*cos(lat)*array([-sin(lon), cos(lon), 0]) 
+        vs = rate*norm(r)*cos(lat)*array([1, 0, 0])                # rotation velocity on surface
+        N = matrix([[0,0,1],[1,0,0],[0,1,0]])                      # mapping matrix for surface velocity -> local velocity
+        
+        return lon, lat, alt, Ax(N.T, v) - vs
 
-def llav_to_rv(lon, lat, alt, vel, refbody, epoch):
+
+def llav_to_rv(lon, lat, alt, surface_vel, refbody, epoch):
         rad = alt + refbody.eq_radius
-        t = ((2*pi/refbody.sidereal_rate) * epoch) % (2*pi)  # angle of planetary rotation
-        R = rotz(t)                                          # rotation matrix for planetary rotation
-        L = rotz(lon)*roty(-lat)                             # rotation matrix for gecentric -> local position (at t0)
+        rate = ((2*pi)/refbody.sidereal_rate)
+        N = matrix([[0,0,1],[1,0,0],[0,1,0]])                # mapping matrix for surface velocity -> local velocity
+        vs = rate*rad*cos(lat)*array([1, 0, 0])              # rotation velocity on surface
+        v = Ax(N, surface_vel + vs)
+        
+        t = (rate * epoch) % (2*pi)                          # angle of planetary rotation
+        R = rotz(t)                                          # rotation matrix for planetary rotation (TODO: Euler angle)
+        L = rotz(lon)*roty(lat)                              # rotation matrix for geocentric -> local position (at t0)
         
         r = Ax(R*L, rad*uniti)
-        v = Ax(R*L, vel)
+        v = Ax(R*L, v)
+        
         return r, v
+
 
 class State(object):
     def __init__(self, refbody, body=None, epoch=0.):
@@ -63,16 +77,20 @@ class State(object):
     @property
     def global_position(self):
         if self.refbody != None:
-            return self.refbody.global_position + self.position
+            return self.refbody.state.global_position + self.position
         else:
             return self.position
     
     @property
     def global_velocity(self):
         if self.refbody != None:
-            return self.refbody.global_velocity + self.velocity
+            return self.refbody.state.global_velocity + self.velocity
         else:
             return self.velocity
+    
+    @property
+    def surface_velocity(self):
+        return self._asgeocentric().surface_velocity
     
     @property
     def apoapsis_hieght(self):
@@ -193,8 +211,8 @@ class OrbitalState(State):
 class VectorState(State):
     def __init__(self, refbody, r, v, body=None, epoch=0.):
         State.__init__(self, refbody, body, epoch)
-        self._vel = v
-        self._pos = r
+        self._vel = v.copy()
+        self._pos = r.copy()
     
     def _asorbit(self):
         if not hasattr(self, '_orbit'):
@@ -238,13 +256,14 @@ class GeocentricState(State):
         self._lon = longitude
         self._lat = latitude
         self._alt = altitude
-        self._vel = velocity
+        self._vel = velocity.copy()
     
     def _asorbit(self):
         if not hasattr(self, '_orbit'):
             r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
             kep = orbit.KeplerOrbit.from_rvu(r, v, self.refbody.std_g_param, self.epoch)
             self._orbit = OrbitalState(self.refbody, kep, self.body, self.epoch)
+        return self._orbit
     
     def _asvectors(self):
         r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
@@ -272,6 +291,10 @@ class GeocentricState(State):
     def rv(self):
         r, v = llav_to_rv(self._lon, self._lat, self._alt, self._vel, self.refbody, self.epoch)
         return r, v
+    
+    @property
+    def surface_velocity(self):
+        return self._vel
 
 
 class FixedState(State):

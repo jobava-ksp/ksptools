@@ -1,11 +1,18 @@
 from __future__ import division
-from numpy import array, pi
+from numpy import array, pi, matrix
 import re
+
+
+def degloc_to_radloc(lon, lat):
+    DR = matrix([pi/180, pi/(180*60), pi/(180*60*60)]).T
+    LL = matrix([lon,lat])
+    return (LL*DR).T.A1
 
 
 class UnitMetaClass(type):
     def __getitem__(cls, value):
         return cls._units[value]
+
 
 class Unit(object):
     __metaclass__ = UnitMetaClass
@@ -67,6 +74,7 @@ class Unit(object):
         return '<{}:{}>'.format(type(self).__name__, str(self))
     
     _units = dict()
+
 
 Unit.addunit('m',
     {'pm': (1.0e+12, 0),

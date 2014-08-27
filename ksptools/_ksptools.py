@@ -1,4 +1,4 @@
-from .simulation import runsimulation
+
 
 def loadsystem(cfgfile):
     from re import match
