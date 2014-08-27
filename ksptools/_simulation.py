@@ -5,55 +5,13 @@ from numpy.linalg import norm
 from .util import unit, rotvec, arcvec
 
 
-class Phase(object):
-    def __init__(self, state, thrust=0, isp0=0, isp1=0, drymass=0, fuelmass=0, coefdrag=0, next_func=lambda x: None):
-        self.state = state
-        self.next = next_func
-        self.thrust = thrust
-        self.isp0 = isp0
-        self.isp1 = isp1
-        self.drymass = drymass
-        self.fuelmass = fuelmass
-        self.coefdrag = coefdrag
-        self.target_angle = None
-    
-    def update(self, r, v, ang, angvel, t, mass):
-        return self
-
-
-class BurnPhase(Phase):
-    def __init__(self, thrust, isp0, isp1, drymass, fuelmass, coefdrag, next_func=lambda x: None):
-        Phase.__init__(self, 'burn', thrust, isp0, isp1, drymass, fuelmass, coefdrag, next_func)
-    
-    def drawfuel(self, dmass):
-        self.fuelmass = max(0, self.fuelmass - dmass)
-        if dmass > self.fuelmass:
-            return self.fuelmass
-        else:
-            return dmass
-    
-    def update(self, r, v, ang, angvel, t, mass):
-        if self.fuelmass <= 0:
-            return self.next(self)
-        else:
-            return self
-
-
-class PreLaunchPhase(Phase):
-    def __init__(self, state, burn_phase):
-        Phase.__init__(self, 'prelaunch', next_func = lambda x: burn_phase)
-    
-    def direction(self, r, v, t):
-        return unit(r)
-
-
 class Controller(object):
-    def __init__(self, state, phase):
+    def __init__(self, vessle, phase):
         """
-        :type state: ksptools.locallity.State
+        :type vessle: Vessle
         """
-        self.state0 = state
-        self.refbody = state.refbody
+        self.vessle = vessle
+        self.refbody = vessle.state.refbody
         self.phase = phase
 
     def p(self, r):
@@ -121,9 +79,8 @@ class Controller(object):
         r = self.state0.position
         v = self.state0.velocity
         t = self.state0.epoch
-        mass = self.phase.drymass + self.phase.fuelmass
-        direction = self.phase.direction(r,v,t)
-        return r, v, t, direction, mass
+        ang = self.state0.orientation * uniti
+        return r, v, t, ang
 
     def pre_step(self, r, v, ang, angvel, dt):
         """
@@ -133,28 +90,17 @@ class Controller(object):
         :type angvel: numpy.array
         :type dt: float
         """
-        if self.phase.state == 'burn':
-            ff = self.isp(r) /self.thrust
-            max_dmass = dt*ff
-            avb_dmass = self.phase.drawfuel(max_dmass)
-            if max_dmass >= avb_dmass:
-                self.phase = self.phase.next()
-                dt, dmass = avb_dmass/ff, -avb_dmass
-            else:
-                dt, dmass = dt, -max_dmass
-        return dt, dmass
+        return dt, 0
 
-    def post_step(self, r, v, ang, angvel, t, mass):
-        self.phase = self.phase.update(r, v, ang, angvel, t, mass)
-        if self.phase is None:
-            return True
-        self.mass = self.phase.fuelmass + self.phase.drymass
-        self.thrust = self.phase.thrust
-        self.isp0 = self.phase.isp0
-        self.isp1 = self.phase.isp1
-        self.coefdrag = self.phase.coefdrag
-        self.target_angle = self.phase.target_angle
-        return False
+    def post_step(self, r, v, ang, angvel, t):
+        """
+        :type r: numpy.ndarray
+        :type v: numpy.ndarray
+        :type ang: numpy.ndarray
+        :type angvel: numpy.ndarray
+        :type t: float
+        """
+        return True
     
     def max_angvel(self, axis):
         #TODO make it better
@@ -170,10 +116,10 @@ def run(controller, stepsize):
     :type controller: Controller
     :type stepsize: float
     """
-    r0, v0, t0, mass0, ang0 = controller.initial_state()
+    r0, v0, t0, ang0 = controller.initial_state()
     angvel0 = array([0,0,0])
 
-    def step(r, v, ang, angvel, t, dt, mass):
+    def step(r, v, ang, angvel, t, dt):
         """
         :type r: numpy.ndarray
         :type v: numpy.ndarray
@@ -181,18 +127,17 @@ def run(controller, stepsize):
         :type angvel: numpy.ndarray
         :type t: float
         :type dt: float
-        :type mass: float
         """
-        dt, dmass = controller.pre_step(r, v, dt)
-        new_accel = controller.accel_d(r, v) + controller.accel_g(r) + ang*controller.accel_t(mass)
+        dt = controller.pre_step(r, v, dt)
+        new_accel = controller.accel_d(r, v) + controller.accel_g(r) + ang*controller.accel_t()
         new_angaccel = controller.accel_ang(r, v, ang, angvel)
         new_v = v + new_accel*dt
         new_angvel = angvel + new_angaccel*dt
         new_r = r + v*dt + 0.5*new_accel*(dt**2)
         rvec = angvel*dt + 0.5*new_angaccel*(dt**2)
         new_ang = Ax(rotvec(unit(rvec), norm(rvec)), ang)
-        return new_r, new_v, new_ang, new_angvel, mass + dmass, t + dt
+        return new_r, new_v, new_ang, new_angvel, t + dt
 
-    while not controller.post_step(r0, v0, ang0, angvel0, t0, mass0):
-        r0, v0, ang0, angvel0, mass0, t0 = step(r0, v0, ang0, angvel0, t0, stepsize, mass0)
+    while not controller.post_step(r0, v0, ang0, angvel0, t0):
+        r0, v0, ang0, angvel0, t0 = step(r0, v0, ang0, angvel0, t0, stepsize)
     return r0, v0, t0
