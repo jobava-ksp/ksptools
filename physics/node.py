@@ -29,7 +29,7 @@ class ModelNode(TreeNode):
         TreeNode.__init__(self, parent):
         self._modelset = set(models)
     
-    def canapply_to_model(self, model):
+    def inmodel(self, model):
         return 'any' in self._modelset or model in self._modelset
 
 

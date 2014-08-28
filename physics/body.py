@@ -1,8 +1,16 @@
 from .node import TreeNode
 from itertools import count
-from numpy import array, matrix, identity
+from numpy import array, matrix, identity, dot, cos, sin
 from numpy.linalg import norm
 
+
+def _rotmat(u):
+    t = norm(u)
+    x,y,z = (u/t)
+    ct, st = cos(t), sin(t)
+    return matrix([[ct+x*x*(1-ct),   x*y*(1-ct)-z*st, x*z*(1-ct)+y*st],
+                   [y*x*(1-ct)+z*st, ct+y*y*(1-ct),   y*z*(1-ct)-x*st],
+                   [z*x*(1-ct)-y*st, z*y*(1-ct)+x*st, ct+z*z*(1-ct)  ]])
 
 class RigidPosition(object):
     def __init__(self, position, orientation):
@@ -27,9 +35,7 @@ class RigidPosition(object):
             vp = RigidVelocity(v.velocity, array([0,0,0]))
         
         rot = dt * v.angular_velocity + 0.5*(dt**2)*a.angular_acceleration
-        rot_axis = rot/norm(rot)
-        rot_t = norm(rot)
-        rp.orientation = rotvec(rot_axis, rot_t) * r.orientation
+        rp.orientation = _rotmat(rot) * r.orientation
         vp.angular_velocity = v.angular_velocity + dt * a.angular_acceleration
         return rp, vp
 
@@ -37,10 +43,10 @@ class RigidPosition(object):
     def transform(dt, r, v, a, inplace=True):
         if inplace:
             translate(dt, r, v, a, r, v)
-            move(dt, r, v, a, r, v)
+            rotate(dt, r, v, a, r, v)
         else:
             r, v = translate(dt, r, v, a)
-            move(dt, r, v, a, r, v)
+            rotate(dt, r, v, a, r, v)
         return r, v
 
 
@@ -94,8 +100,9 @@ class RigidAcceleration(object):
 
 
 class RigidBody(TreeNode):
-    def __init__(self, position, velocity):
+    def __init__(self, position, velocity, mass):
         TreeNode.__init__(self)
+        self.mass = mass
         self._position = position
         self._velocity = velocity
     
@@ -122,6 +129,31 @@ class RigidBody(TreeNode):
     
     def _set_w(self):
         self._velocity.angular_velocity = w
+    
+    def _coefdrag_local(self, d):
+        raise NotImplementedError
+    
+    def _area_local(self, d):
+        raise NotImplementedError
+    
+    def _inertia_local(self, axis):
+        raise NotImplementedError
+    
+    def transform_newton(self, dt, accel, angular_accel):
+        a = RigidAcceleration(accel, angular_accel)
+        translate(dt, self._position, self._velocity, a)
+    
+    def coefdrag(self, d):
+        d = dot(self.A.T, d)
+        return self._coefdrag_local(d)
+    
+    def area(self, d):
+        d = dot(self.A.T, d)
+        return self._area_local(d)
+    
+    def inertia(self, axis):
+        axis = dot(self.A.T, axis)
+        return self._inertia_local(axis)
     
     x = property(_get_x, _set_x)
     v = property(_get_v, _set_v)
