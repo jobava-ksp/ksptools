@@ -5,6 +5,7 @@ from numpy.linalg import norm
 
 from .node import ModelNode
 
+
 class Field(ModelNode):
     def __init__(self, modelset=['any']):
         ModelNode.__init__(self, modelset)
@@ -24,7 +25,7 @@ class CenteredField(Field):
     
     def isbounded(self, body):
         if self.soi is not None:
-            return norm(body.x - center.x) < self.soi
+            return norm(body.x - self.center.x) < self.soi
         else:
             return True
 
@@ -53,6 +54,4 @@ class AtmosphericField(CenteredField):
         p = self.surface_p * const.e**(-alt/self.scale_height)
         d = v/norm(v)
         CdA = body.coefdrag(d) * body.area(d)
-        return d * 0.5 * p * dot(v,v) * CdA
-
-
+        return d * 0.5 * p * dot(v, v) * CdA

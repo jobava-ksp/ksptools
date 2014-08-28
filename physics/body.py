@@ -1,24 +1,39 @@
 from .node import TreeNode
-from itertools import count
-from numpy import array, matrix, identity, dot, cos, sin
+from numpy import array, mat, asmatrix, identity, dot, cos, sin
 from numpy.linalg import norm
 
 
 def _rotmat(u):
+    """
+    :type u: numpy.ndarray
+    """
     t = norm(u)
-    x,y,z = (u/t)
+    x, y, z = (u/t)
     ct, st = cos(t), sin(t)
-    return matrix([[ct+x*x*(1-ct),   x*y*(1-ct)-z*st, x*z*(1-ct)+y*st],
-                   [y*x*(1-ct)+z*st, ct+y*y*(1-ct),   y*z*(1-ct)-x*st],
-                   [z*x*(1-ct)-y*st, z*y*(1-ct)+x*st, ct+z*z*(1-ct)  ]])
+    return mat([[ct+x*x*(1-ct),   x*y*(1-ct)-z*st, x*z*(1-ct)+y*st],
+                [y*x*(1-ct)+z*st, ct+y*y*(1-ct),   y*z*(1-ct)-x*st],
+                [z*x*(1-ct)-y*st, z*y*(1-ct)+x*st, ct+z*z*(1-ct)  ]])
+
 
 class RigidPosition(object):
     def __init__(self, position, orientation):
+        """
+        :type position: numpy.ndarray
+        :type orientation: numpy.ndarray
+        """
         self.position = position
         self.orientation = orientation
     
     @staticmethod
     def translate(dt, r, v, a, rp=None, vp=None):
+        """
+        :type dt: float
+        :type r: RigidPosition
+        :type v: RigidVelocity
+        :type a: RigidAcceleration
+        :type rp: RigidPosition
+        :type vp: RigidVelocity
+        """
         if rp is None:
             rp = RigidPosition(array([0,0,0]), r.orientation.copy())
         if vp is None:
@@ -29,8 +44,16 @@ class RigidPosition(object):
     
     @staticmethod
     def rotate(dt, r, v, a=None, rp=None, vp=None):
+        """
+        :type dt: float
+        :type r: RigidPosition
+        :type v: RigidVelocity
+        :type a: RigidAcceleration
+        :type rp: RigidPosition
+        :type vp: RigidVelocity
+        """
         if rp is None:
-            rp = RigidPosition(r.position, matrix(identity(3)))
+            rp = RigidPosition(r.position, asmatrix(identity(3)))
         if vp is None:
             vp = RigidVelocity(v.velocity, array([0,0,0]))
         
@@ -41,6 +64,13 @@ class RigidPosition(object):
 
     @staticmethod
     def transform(dt, r, v, a, inplace=True):
+        """
+        :type dt: float
+        :type r: RigidPosition
+        :type v: RigidVelocity
+        :type a: RigidAcceleration
+        :type inplace: bool
+        """
         if inplace:
             translate(dt, r, v, a, r, v)
             rotate(dt, r, v, a, r, v)
@@ -57,50 +87,87 @@ transform = RigidPosition.transform
 
 class RigidVelocity(object):
     def __init__(self, velocity, angular_velocity):
+        """
+        :type velocity: numpy.ndarray
+        :type angular_velocity: numpy.ndarray
+        """
         self.velocity = velocity
         self.angular_velocity = angular_velocity
     
     def __mul__(self, dt):
+        """
+        :type dt: float
+        """
         r = dt * self.velocity
-        A = rotvec(self.axis, self.angular_velocity*dt)
-        return RigidBody(r, A)
+        A = _rotmat(r)
+        return RigidPosition(r, A)
         
     def __rmul__(self, dt):
+        """
+        :type dt: float
+        """
         return self.__mul__(dt)
     
     def __add__(self, other):
+        """
+        :type other: RigidVelocity
+        """
         v = self.velocity + other.velocity
-        a = self.angular_velocity other.angular_velocity
+        a = self.angular_velocity + other.angular_velocity
         return RigidVelocity(v, a)
     
     def __radd__(self, other):
+        """
+        :type other: RigidVelocity
+        """
         return self.__add__(other)
 
 
 class RigidAcceleration(object):
     def __init__(self, acceleration, angular_acceleration):
+        """
+        :type acceleration: numpy.ndarray
+        :type angular_acceleration: numpy.ndarray
+        """
         self.acceleration = acceleration
         self.angular_acceleration = angular_acceleration
     
     def __mul__(self, dt):
+        """
+        :type dt: float
+        """
         v = dt * self.acceleration
-        t = dt * self.angular_acceleartion
-        return RigidVelocity(v, t*self.axis)
+        w = dt * self.angular_acceleration
+        return RigidVelocity(v, w)
     
     def __rmul__(self, dt):
+        """
+        :type dt: float
+        """
         return self.__mul__(dt)
     
     def __add__(self, other):
+        """
+        :type other: RigidAcceleration
+        """
         a = self.acceleration + other.acceleration
-        t = self.angular_acceleartion + other.angular_acceleration
+        t = self.angular_acceleration + other.angular_acceleration
         return RigidAcceleration(a, t)
     
     def __radd__(self, other):
+        """
+        :type other: RigidAcceleration
+        """
         return self.__add__(other)
 
 
 class RigidBody(TreeNode):
     def __init__(self, position, velocity, mass):
+        """
+        :type position: RigidPosition
+        :type velocity: RigidVelocity
+        :type mass: float
+        """
         TreeNode.__init__(self)
         self.mass = mass
         self._position = position
@@ -125,33 +192,56 @@ class RigidBody(TreeNode):
         self._position.orientation = A
     
     def _get_w(self):
-        return self.velocity.angular_velocity
+        return self._velocity.angular_velocity
     
-    def _set_w(self):
+    def _set_w(self, w):
         self._velocity.angular_velocity = w
     
     def _coefdrag_local(self, d):
+        """
+        :type d: numpy.ndarray
+        """
         raise NotImplementedError
     
     def _area_local(self, d):
+        """
+        :type d: numpy.ndarray
+        """
         raise NotImplementedError
     
     def _inertia_local(self, axis):
+        """
+        :type axis: numpy.ndarray
+        """
         raise NotImplementedError
     
     def transform_newton(self, dt, accel, angular_accel):
+        """
+        :type dt: float
+        :type accel: numpy.ndarray
+        :type angular_accel: numpy.ndarray
+        """
         a = RigidAcceleration(accel, angular_accel)
         translate(dt, self._position, self._velocity, a)
     
     def coefdrag(self, d):
+        """
+        :type d: numpy.ndarray
+        """
         d = dot(self.A.T, d)
         return self._coefdrag_local(d)
     
     def area(self, d):
+        """
+        :type d: numpy.ndarray
+        """
         d = dot(self.A.T, d)
         return self._area_local(d)
     
     def inertia(self, axis):
+        """
+        :type axis: numpy.ndarray
+        """
         axis = dot(self.A.T, axis)
         return self._inertia_local(axis)
     
