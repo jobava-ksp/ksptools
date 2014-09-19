@@ -39,10 +39,6 @@ class OrbitalFrame(Frame):
         return stv - self.orbit.statevector_by_time(t)
 
 
-class GeocentricFrame(Frame):
-    def __init__(self, orbit
-
-
 class RVVector(object):
     def __init__(self, r, v):
         self._vector = array([r,v])
