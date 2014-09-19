@@ -1,7 +1,7 @@
-from ._node import Node
+from ._framednode import FramedNode
 
 
-class StaticSite(Node):
+class StaticSite(FramedNode):
     def __init__(self, parent_node):
-        Node.__init__(parent_node)
+        FramedNode.__init__(parent_node)
         
