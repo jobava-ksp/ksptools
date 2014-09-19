@@ -8,84 +8,8 @@ from numpy.linalg import nrom
 from scipy.optimize import newton
 
 from ._math import *
-
-
-class Frame(object):
-    def __init__(object):
-        pass
-
-
-class PerifocalFrame(Frame):
-    def __init__(self, inc, lonasc, argpe):
-        self._A = rotzxz(lonasc, inc, argpe)
-        self.inc = inc
-        self.lonasc = lonasc
-        self.argpe = argpe
-    
-    def tostatevector(self, loc):
-        rp = array(list(loc.r) + [0])
-        vp = array(list(loc.v) + [0])
-        return StateVector(dot(self._A, rp).A1, dot(self._A, vp).A1)
-
-
-class OrbitalFrame(Frame):
-    def __init__(self, orbit):
-        self.orbit = orbit
-    
-    def toinertial(self, stv, t):
-        return stv + self.orbit.statevector_by_time(t)
-    
-    def tolocal(self, stv, t):
-        return stv - self.orbit.statevector_by_time(t)
-
-
-class RVVector(object):
-    def __init__(self, r, v):
-        self._vector = array([r,v])
-    
-    def __add__(self, other):
-        return type(self)(self.r + other.r, self.v + other.v)
-    
-    def __sub__(self, other):
-        return type(self)(self.r - other.r, self.v - other.v)
-    
-    def __iadd__(self, other):
-        self._vector += other._vector
-    
-    def __isub__(self, other):
-        self._vector -= other._vector
-    
-    def _get_r(self):
-        return self._vector[0]
-    
-    def _set_r(self, r):
-        self._vector[0] = r
-    
-    def _get_v(self):
-        return self._vector[1]
-    
-    def _set_v(self, v):
-        self._vector[1] = v
-    
-    r = property(_get_r, _set_r)
-    v = property(_get_v, _set_v)
-
-
-class StateVector(RVVector):    
-    def _get_dar(self):
-        s = norm(self.r)
-        l, m, n = self.r/s
-        decl = asin(n)
-        if m > 0:
-            return decl, acos(l/cos(decl)), s
-        else:
-            return decl, 2*pi - acos(l/cos(decl)), s
-    dar = property(_get_dar)
-
-
-class PerifocalVector(RVVector):
-    def __init__(self, r, v):
-        self._vector = array([r,v])
+from ._vector import perifocal_vector, state_vector
+from ._frame import perifocal_frame
 
 
 class KeplerOrbit(object):
@@ -102,7 +26,7 @@ class KeplerOrbit(object):
         self.rap = array([-1,0,0]) * p/(1-ecc)
         self.vpe = array([0,ecc + 1,0]) * (u/h)
         self.vap = array([0,ecc - 1,0]) * (u/h)
-        self.frame = ParifocalFrame(inc, lonasc, argpe)
+        self.frame = perifocal_frame(inc, lonasc, argpe)
         self.epoch = epoch
     
     lambert = classmethod(_lambert.lambert)
@@ -152,7 +76,7 @@ class KeplerOrbit(object):
     
     @classmethod
     def from_rvu(cls, r, v, u, epoch):
-        return cls.from_statevector(StateVector(r,v), u, epoch)
+        return cls.from_statevector(state_vector(r,v), u, epoch)
     
     @classmethod
     def from_parameters(cls, ecc, sma, inc, lonasc, argpe, M0, u, epoch):
@@ -168,7 +92,7 @@ class KeplerOrbit(object):
         e, p, h, u = self.eccentricity, self.semilatus_rectum, self.specific_angular_momentum, self.GM
         ru = array([cos(ta), sin(ta)])
         vu = array([-sin(ta), e + cos(ta)])
-        return PerifocalVector((p/(1+e*cos(ta)))*ru, (u/h)*vu)
+        return perifocal_vector((p/(1+e*cos(ta)))*ru, (u/h)*vu)
     
     def perifocal_by_time(self, time):
         return self.perifocal_by_ta(self.true_anomaly(time))
