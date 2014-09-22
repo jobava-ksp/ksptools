@@ -1,6 +1,6 @@
 from __future__ import division
 
-from numpy import array, cos, acos
+from numpy import array, cos, arccos
 from numpy.linalg import norm
 
 
@@ -36,15 +36,15 @@ class RVVector(object):
     v = property(_get_v, _set_v)
 
 
-class StateVector(RVVector):    
+class StateVector(RVVector):
     def _get_dar(self):
         s = norm(self.r)
         l, m, n = self.r/s
         decl = asin(n)
         if m > 0:
-            return decl, acos(l/cos(decl)), s
+            return decl, arccos(l/cos(decl)), s
         else:
-            return decl, 2*pi - acos(l/cos(decl)), s
+            return decl, 2*pi - arccos(l/cos(decl)), s
     dar = property(_get_dar)
 
 

@@ -21,7 +21,7 @@ def rotz(t):
                  [      0,      0, 1]])
 
 def rotzxz(a,b,c):
-    return rotz(c)*rot(b)*rot(a)
+    return rotz(c)*rotx(b)*rotz(a)
     
 
 def C(z):
