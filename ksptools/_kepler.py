@@ -131,4 +131,8 @@ class KeplerOrbit(object):
         
         return newton(func, abs(a)*sqrt(u)*dt, funcp)
     
-        
+
+def parse_kepler(str_parameters):
+    return KeplerOrbit.from_parameters(*(asunits(str_parameters,['_','m','rad','rad','rad','rad','m3_p_sec2','sec'])))
+
+

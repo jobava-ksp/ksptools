@@ -1,6 +1,6 @@
 from __future__ import division
 
-from numpy import array, cos, arccos
+from numpy import array, arcsin, cos, arccos
 from numpy.linalg import norm
 from scipy.integrate import odeint, ode
 
@@ -41,7 +41,7 @@ class StateVector(RVVector):
     def _get_dar(self):
         s = norm(self.r)
         l, m, n = self.r/s
-        decl = asin(n)
+        decl = arcsin(n)
         if m > 0:
             return decl, arccos(l/cos(decl)), s
         else:
@@ -59,14 +59,5 @@ def state_vector(r,v):
 
 def perifocal_vector(r,v):
     return PerifocalVector(r,v)
-
-def compute_ode_time(stv, t0, t1, accel_func):
-    rv = array(list(stv.r) + list(stv.v))
-    print rv
-    def func(y, t):
-        return array(list(y[3:6]) + list(accel_func(y[0:3], y[3:6], t)))
-    
-    rv1 = odeint(func, rv, [t0, t1])[1]
-    return type(stv)(rv1[0:3], rv1[3:6])
 
 
