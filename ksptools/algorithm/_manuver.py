@@ -64,3 +64,9 @@ def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
             path.impulse(body, stvTf, stvB, tB),
             path.coast(body, kepB, tB)])
 
+#                        #
+# Bi-elliptic Rondezvous #
+#                        #
+
+def solve_bielliptic_rondezvous(kepA, kepB):
+    hA = kepA.
