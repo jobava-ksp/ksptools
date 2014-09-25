@@ -2,13 +2,22 @@ from __future__ import division
 
 from numpy import array, cos, cross, dot, mat, pi, sin, sqrt, zeros
 from numpy.linalg import norm
-from ._math import rotz, rotzxz, asunits
+from ._math import rotz, rotzxz, asunits, uniti, unitk, unitj
 from ._vector import state_vector
 from .algorithm._geodetic import geodetic_latitude
 
 class Frame(object):
     def __init__(object):
         pass
+    
+    def uniti(self, t):
+        raise NotImplementedError
+    
+    def unitj(self, t):
+        raise NotImplementedError
+    
+    def unitk(self, t):
+        raise NotImplementedError
 
 
 class InertialFrame(Frame):
@@ -20,35 +29,101 @@ class InertialFrame(Frame):
         
     def tolocal(self, stv, t):
         return stv
+    
+    def uniti(self, t):
+        return uniti
+    
+    def unitj(self, t):
+        return unitj
+    
+    def unitk(self, t):
+        return unitk
 
 
-class GeocentricFrame(Frame):
-    def __init__(self, inc, lonasc, argve):
-        self._A = rotzxz(lonasc, inc, argve)
+class ConstantDisplacementFrame(InertialFrame):
+    def __init__(self, origin):
+        self.origin = origin
     
     def toinertial(self, stv, t):
+        return stv + self.origin
+    
+    def tolocal(self, stv, t):
+        return stv - self.origin
+
+
+class FunctionalDisplacementFrame(InertialFrame):
+    def __init__(self, origin_func):
+        self._rvfunc = origin_func
+    
+    def toinertial(self, stv, t):
+        origin = self._rvfunc(t)
+        return stv + origin
+    
+    def tolocal(self, stv, t):
+        origin = self._rvfunc(t)
+        return stv - origin
+
+
+class ConstantOrientationFrame(Frame):
+    def __init__(self, A):
+        self._A = A
+        self._AI = A.I
+    
+    def toinertial(self, stv, t):
+        return state_vector(dot(self._AI, stv.r).A1, dot(self._AI, stv.v).A1)
+    
+    def tolocal(self, stv, t):
         return state_vector(dot(self._A, stv.r).A1, dot(self._A, stv.v).A1)
     
-    def tolocal(self, stv, t):
-        return state_vector(dot(self._A.T, stv.r).A1, dot(self._A.T, stv.v).A1)
+    def uniti(self, t):
+        return self._A[0].A1
+    
+    def unitj(self, t):
+        return self._A[1].A1
+    
+    def unitk(self, t):
+        return self._A[2].A1
 
 
-class GeocentricRotatingFrame(GeocentricFrame):
-    def __init__(self, inc, lonasc, argve, sidereal_rate):
-        GeocentricFrame.__init__(self, inc, lonasc, argve)
-        self._w = sidereal_rate
+class ConstantRotationFrame(Frame):
+    def __init__(self, A, w):
+        self._A = A
+        self._AI = A.I
+        self._w = w
+    
+    def _tolocal_A(self, t):
+        return dot(rotz(-t*self._w), self._A)
     
     def toinertial(self, stv, t):
-        A = dot(rotz(t*self._w), self._A)
+        A = self._tolocal_A(t).I
         r = dot(A, stv.r).A1
-        v = dot(A, stv.v + cross(array([0,0,self._w]), stv.r)).A1
+        v = dot(A, stv.v + cross(unitk*self._w, stv.r)).A1
         return state_vector(r, v)
     
     def tolocal(self, stv, t):
-        A = dot(rotz(t*self._w), self._A).T
+        A = self._tolocal_A(t)
         r = dot(A, stv.r).A1
-        v = dot(A, stv.v).A1 - cross(array([0,0,self._w]), r)
+        v = dot(A, stv.v).A1 - cross(unitk*self._w, r)
         return state_vector(r, v)
+    
+    def uniti(self, t):
+        return self._tolocal_A(t)[0].A1
+    
+    def unitj(self, t):
+        return self._tolocal_A(t)[1].A1
+    
+    def unitk(self, t):
+        return self._tolocal_A(t)[2].A1
+
+
+class GeocentricFrame(ConstantOrientationFrame):
+    def __init__(self, inc, lonasc, argve):
+        ConstantOrientationFrame.__init__(self, rotzxz(lonasc, inc, argve))
+
+
+class GeocentricRotatingFrame(ConstantRotationFrame):
+    def __init__(self, inc, lonasc, argve, sidereal_rate):
+        ConstantRotationFrame.__init__(self, rotzxz(inc, lonasc, argve), sidereal_rate)
 
 
 class PerifocalFrame(GeocentricFrame):
@@ -64,20 +139,18 @@ class PerifocalFrame(GeocentricFrame):
         return dot(self._A.T, stv.r).A1[0:2], dot(self._A.T, stv.v).A1[0:2]
 
 
-class OrbitalFrame(Frame):
+class OrbitalFrame(FunctionalDisplacementFrame):
     def __init__(self, orbit):
+        FunctionalDisplacementFrame.__init__(self, self._displacement)
         self.orbit = orbit
     
-    def toinertial(self, stv, t):
-        return stv + self.orbit.statevector_by_time(t)
-    
-    def tolocal(self, stv, t):
-        return stv - self.orbit.statevector_by_time(t)
+    def _displacement(self, t):
+        return orbit._statevector_by_time(t)
 
 
-class GeodeticFrame(GeocentricRotatingFrame):
+class RotatingEllipsoide(object):
     def __init__(self, Rp, Re, inc, lonasc, argve, sidereal_rate):
-        GeocentricRotatingFrame.__init__(self, inc, lonasc, argve, sidereal_rate)
+        self.frame = GeocentricRotatingFrame(inc, lonasc, argve, sidereal_rate)
         self.f = (Rp + Re)/Re
         self.e = sqrt(2*self.f-self.f**2)
         self.Rp = Rp
@@ -126,12 +199,12 @@ def inertial_frame():
     return InertialFrame()
 
 def geodetic_frame(Rp, Re, inc, lonasc, argve, period):
-    return GeodeticFrame(Rp,Re,inc,lonasc,argve,(2*pi)/period)
+    return RotatingEllipsoide(Rp,Re,inc,lonasc,argve,(2*pi)/period)
 
 def parse_geodetic_frame(geodetic_expr):
     expr_list = [e.strip() for e in geodetic_expr[1:-1].split(',')]
     Re, Rp, inc, lonasc, argve, period = asunits(expr_list, ['m','m','rad','rad','rad','sec'])
-    return GeodeticFrame(Rp, Re, inc, lonasc, argve, (2*pi)/period)
+    return RotatingEllipsoide(Rp, Re, inc, lonasc, argve, (2*pi)/period)
 
 def geocentric_frame(inc, lonasc, argve):
     return GeocentricFrame(inc, lonasc, argve)

@@ -1,24 +1,17 @@
+from .._kepler import KeplerOrbit as kepler
+from .._vector import state_vector
 from ..path._path import Path as path
-from numpy import sqrt, dot, pi
+from numpy import array, dot, cross, imag, pi, roots, sqrt
 from numpy.linalg import norm
 
 #         #
 # Hohmann #
 #         #
 
-def _hohmann_dv(r0, v0, ta, tb, u):
-    th = sqrt(2*u)*sqrt((ta*tb)/(ta + tb))
-    hh = sqrt(2*u)*sqrt((ta*r0)/(ta + r0))
-    
-    dv0 = abs(v0 - hh/r0)
-    dv1 = abs(hh/ta - th/ta)
-    return dv0 + dv1
-
-
 def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
     ## Start at periapsis or apopasis
-    stvA_pe, tA_pe = kepA.statevector_by_ta(0), kepA.time_by_ta(0, ts)
-    stvA_ap, tA_ap = kepA.statevector_by_ta(pi), kepA.time_by_ta(pi, ts)    
+    stvA_pe, tA_pe = kepA.statevector_by_ta(0), kepA.time_at_ta(0, ts)
+    stvA_ap, tA_ap = kepA.statevector_by_ta(pi), kepA.time_at_ta(pi, ts)    
     
     if tap is None or tpe == tap:
         ## possible transfers to a circular orbit
@@ -35,6 +28,14 @@ def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
             (stvA_ap, tA_ap, tpe, tap, body.GM),
             (stvA_ap, tA_ap, tap, tpe, body.GM)]
     
+    def _hohmann_dv(r0, v0, ta, tb, u):
+        th = sqrt(2*u)*sqrt((ta*tb)/(ta + tb))
+        hh = sqrt(2*u)*sqrt((ta*r0)/(ta + r0))
+        
+        dv0 = abs(v0 - hh/r0)
+        dv1 = abs(hh/ta - th/ta)
+        return dv0 + dv1
+    
     ## find the best transfer
     fdv = lambda x: _hohmann_dv(norm(x[0].r), norm(x[0].v), x[2], x[3], x[4])
     stvA, tA, r0, r1, u = min(transfer_list, key=fdv)
@@ -43,19 +44,16 @@ def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
     hT = sqrt(2*u)*sqrt((r0*norm(stvA.r))/(r0+norm(stvA.r)))
     hB = sqrt(2*u)*sqrt((r0*r1)/(r0+r1))
     
-    ## types ##
-    vector_type = type(stvA)
-    orbit_type = type(kepA)
-    
     ## Transfer orbit (kepT) and state vectors at tA and tB (stvTi, stvTf)
-    stvTi = vector_type(stvA.r, (stvA.v/norm(stvA.v))*(hT/norm(stvA.r)))
-    kepT = orbit_type.from_statevector(stvTi, u, tA)
+    vTi = cross(kepA.normal, stvA.r/norm(stvA.r))*(hT/norm(stvA.r))
+    stvTi = state_vector(stvA.r, vTi)
+    kepT = kepler.from_statevector(stvTi, u, tA)
     tB = tA + kepT.period/2.0
     stvTf = kepT.statevector_by_time(tB)
     
     ## final orbit (kepB)
-    stvB = vector_type(stvTf.r, (stvTf.v/norm(stvTf.v))*(hB/norm(stvTf.r)))
-    kepB = orbit_type.from_statevector(stvB, u, tB)
+    stvB = state_vector(stvTf.r, (stvTf.v/norm(stvTf.v))*(hB/norm(stvTf.r)))
+    kepB = kepler.from_statevector(stvB, u, tB)
     
     return path([
             path.coast(body, kepA, ts, tA),
@@ -68,7 +66,53 @@ def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
 # Bi-elliptic Rondezvous #
 #                        #
 
-def solve_bielliptic_rondezvous(kepA, kepB):
-    hA = kepA.specific_angular_momentum
-    hB = kepB.specific_angular_momentum
+def solve_bielliptic_rondezvous(body, kepA, kepB, ts):
+    rel_an = cross(kepA.normal, kspB.normal) # relative ascending node
+    rel_dn = -rel_dn                         # relative descending node
+    rel_an = rel_an/norm(rel_an)             # both as unit vectors
+    rel_dn = rel_dn/norm(rel_dn)
     
+    def solve_at_node(node, n, m):
+        thetaA = kepA.true_anomaly_by_vector(node)
+        tA = kepA.time_at_ta(thetaA, ts) + n * kepA.period
+        rvA = kepA.statevector_by_ta(thetaA)
+        rA = norm(rvA.r)
+        
+        thetaB = kepB.true_anomaly_by_vector(node)
+        tB = kepB.time_at_ta(thetaB, tA) + m * kepB.period
+        rvB = kepB.statevector_by_ta(thetaB)
+        rB = norm(rvB.r)
+        
+        if tB >= tA:
+            return []
+        
+        coefs = array([
+            2,
+            3*(rA + rB),
+            3*(rA**2 + rB**2),
+            rA**3 + rB**3 - 8*body.GM*(tB-tA)])
+        return [((tA, rA, rvA, tB, rB, rvB, rT) for rT in roots(coefs) if rT > 0 and imag(rT) == 0]
+    
+    for n in itertools.count():
+        for m in range(int(kepB.period/kepA.period) + 1):
+            for tA, rA, rvA, tB, rB, rvB, rT in itertools.chain(solve_at_node(rel_an, rel_dn)):
+                hT0 = sqrt(2*body.GM)*(rA*rT/(rA + rT))
+                hT1 = sqrt(2*body.GM)*(rT*rB/(rT + rB))
+                tT = (rA + rT)**3/(16*body.GM) + tA
+                vT0i = cross(kepA.normal, rvA.r/rA)*(hT0/rA)
+                vT1f = cross(kepB.normal, rvB.r/rB)*(hT1/rB)
+                stvT0i = state_vector(rvA.r, vT0i)
+                stvT1f = state_vector(rvB.r, vT1f)
+                kepT0 = kepler.from_statevector(stvT0i, body.GM, tA)
+                kepT1 = kepler.from_statevector(stvT1f, body.GM, tB)
+                stvT0f = kepT0.statevector_by_time(tT)
+                stvT1i = kepT1.statevector_by_time(tT)
+                
+                yield path([
+                    path.coast(body, kepA, ts, tA),
+                    path.impulse(body, rvA, stvT0i, tA),
+                    path.coast(body, kepT0, tA, tT),
+                    path.impulse(body, stvT0f, stvT1i, tT),
+                    path.coast(body, kepT1, tT, tB),
+                    path.impulse(body, stvT1f, rvB, tB),
+                    path.coast(body, kepB, tB)])

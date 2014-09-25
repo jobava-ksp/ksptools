@@ -6,10 +6,11 @@ from .._frame import parse_geodetic_frame, parse_orbital_frame
 
 
 class CelestialBody(Body):
-    def __init__(self, parent_node, frame, u, soi, geodetic_frame):
+    def __init__(self, parent_node, frame, u, soi, geodetic_surface):
         Body.__init__(self, parent_node, frame)
         self.GM = u
-        self.surface_frame = geodetic_frame
+        self.surface = geodetic_surface
+        self.surface_frame = geodetic_surface.frame
         self.atmosphere = None
 
 

@@ -13,9 +13,10 @@ class Atmosphere(Field):
         self.min_temp = min_temp
         self.max_temp = max_temp
         self.has_oxygen = has_oxygen
+        self.surface = parent_node.surface
     
     def atm_state(self, stv, t):
-        lat, lon, alt, v = self.frame.geodetic_llav(stv, t)
+        lat, lon, alt, v = self.surface.geodetic_llav(stv, t)
         if alt < self.height:
             p = self.p_sl * pow(np.e, -alt/self.scale_height)
             a = self.atm_sl * pow(np.e, -alt/self.scale_height)

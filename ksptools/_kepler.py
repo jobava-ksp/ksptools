@@ -27,6 +27,7 @@ class KeplerOrbit(object):
         self.vpe = array([0,ecc + 1,0]) * (u/h)
         self.vap = array([0,ecc - 1,0]) * (u/h)
         self.frame = perifocal_frame(inc, lonasc, argpe)
+        self.normal = self.frame.unitk(0)
         self.epoch = epoch
         if ecc < 1:
             self.period = 2*pi*sqrt(sma**3/u)
@@ -122,11 +123,18 @@ class KeplerOrbit(object):
             ta = 2*arctan(sqrt((e+1)/(e-1))*tanh(F/2))
         return ta
     
-    def time_by_ta(self, ta, t0):
-        offset = self._time_by_ta(ta)
-        assert(offset >= 0)
-        n = int((t0 - (self.epoch+offset))/self.period)
-        return self.period*(n+1) + (self.epoch + offset)
+    def true_anomaly_by_vector(self, iv):
+        r, v = self.frame.tolocalvector(iv)
+        ct = dot(r,array([1,0]))
+        if r[1] >= 0:
+            return arccos(ct)
+        else:
+            return 2*pi - arccos(ct)
+    
+    def time_at_ta(self, ta, ts):
+        offset = self.time_anomaly_by_ta(ta) + self.epoch
+        n = int((ts - offset)/self.period)
+        return offset + (n+1)*self.period
     
     def _universal_anomaly(self, time):
         delt = time - self.epoch
@@ -143,7 +151,7 @@ class KeplerOrbit(object):
         
         return newton(func, abs(a)*sqrt(u)*delt, gfunc)
     
-    def _time_by_ta(self, ta):
+    def time_anomaly_by_ta(self, ta):
         e, a, u = self.eccentricity, self.semimajor_axis, self.GM
         if e == 1:
             raise NotImplementedError
