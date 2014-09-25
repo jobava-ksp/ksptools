@@ -1,8 +1,8 @@
-from ._node import Node
+from ._framednode import FramedNode
 
 
 class Field(FramedNode):
     def __init__(self, parent_node):
-        Node.__init__(parent_node, parent_node.surface_frame)
+        FramedNode.__init__(self, parent_node, parent_node.surface_frame)
 
 

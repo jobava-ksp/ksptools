@@ -1,9 +1,9 @@
 from __future__ import division
-from ._math import *
+from .._math import *
 
-from numpy import acos, cross, dot, pi, sqrt
+from numpy import arccos, cross, dot, pi, sqrt
 from numpy.linalg import norm
-from scipy.otpimize import newton
+from scipy.optimize import newton
 
 def lambert(kep, r1, t1, r2, t2, u):
     rad1 = norm(r1)
@@ -12,9 +12,9 @@ def lambert(kep, r1, t1, r2, t2, u):
     cosi = cross(r1,r2)[2]/(rad1*rad2)
     dtime = t2 - t1
     if cosi >= 0:
-        dta = acos(cosdta)
+        dta = arccos(cosdta)
     elif cosi < 0:
-        dta = 2*pi - acos(cosdta)
+        dta = 2*pi - arccos(cosdta)
     else:
         raise NotImplementedError
     

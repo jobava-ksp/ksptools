@@ -36,13 +36,13 @@ class Node(object):
     @staticmethod
     def path(from_node, to_node):
         root_path_from = list(Node._path_to_root(from_node))
-        root_path_to = list(reversed(Node._path_to_root(to_node)
+        root_path_to = list(reversed(Node._path_to_root(to_node)))
         while root_path_from[-1] == root_path_to[0]:
             root_path_from = root_path_from[:-1]
             root_path_to = root_path_to[1:]
         path_ft = root_path_from + foot_path_to
         return zip(path_ft[:-1], path_ft[1:])
     
-    nextid = itertools.count()
+    _nextid = itertools.count()
 
 

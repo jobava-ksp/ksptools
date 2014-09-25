@@ -58,7 +58,9 @@ class Unit(object):
     def parse(cls, strvalue):
         unit_regex = '(?P<unit>({}))?'.format(')|('.join(v.name for v in cls._units.values()))
         value_regex = r'(?P<value>(\-|\+)?[0-9]+(\.[0-9]+)?(e(\+|\-)?[0-9]+)?)'
-        m = re.match(value_regex + '\s*' + unit_regex, strvalue)
+        m = re.match(value_regex + '\s*' + unit_regex, strvalue.strip())
+        if not m:
+            print(strvalue)
         if not m.group('unit'):
             return float(m.group('value')), None
         else:

@@ -2,7 +2,7 @@ from __future__ import division
 
 from numpy import array, cos, cross, dot, mat, pi, sin, sqrt, zeros
 from numpy.linalg import norm
-from ._math import rotz, rotzxz
+from ._math import rotz, rotzxz, asunits
 from ._vector import state_vector
 from .algorithm._geodetic import geodetic_latitude
 
@@ -128,6 +128,11 @@ def inertial_frame():
 def geodetic_frame(Rp, Re, inc, lonasc, argve, period):
     return GeodeticFrame(Rp,Re,inc,lonasc,argve,(2*pi)/period)
 
+def parse_geodetic_frame(geodetic_expr):
+    expr_list = [e.strip() for e in geodetic_expr[1:-1].split(',')]
+    Re, Rp, inc, lonasc, argve, period = asunits(expr_list, ['m','m','rad','rad','rad','sec'])
+    return GeodeticFrame(Rp, Re, inc, lonasc, argve, (2*pi)/period)
+
 def geocentric_frame(inc, lonasc, argve):
     return GeocentricFrame(inc, lonasc, argve)
 
@@ -136,4 +141,8 @@ def perifocal_frame(inc, lonasc, argpe):
 
 def orbital_frame(orbit):
     return OrbitalFrame(orbit)
+
+def parse_orbital_frame(kepler_expr, u, epoch):
+    from ._kepler import parse_kepler
+    return OrbitalFrame(parse_kepler(kepler_expr, u, epoch))
 

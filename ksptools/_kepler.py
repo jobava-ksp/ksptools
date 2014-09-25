@@ -3,8 +3,8 @@ from __future__ import division
 import numpy
 import numpy.linalg
 
-from numpy import acos, array, asin, atan, cos, cosh, cross, dot, ln, mat, pi, sin, sinh, sqrt, tan, tanh
-from numpy.linalg import nrom
+from numpy import arccos, array, arcsin, arctan, cos, cosh, cross, dot, log, mat, pi, sin, sinh, sqrt, tan, tanh
+from numpy.linalg import norm
 from scipy.optimize import newton
 
 from ._math import *
@@ -13,7 +13,7 @@ from ._frame import perifocal_frame
 
 
 class KeplerOrbit(object):
-    from . import _lambert
+    from .algorithm._lambert import lambert
     def __init__(self, ecc, sma, inc, lonasc, argpe, u, epoch):
         p = sma*(1-ecc**2)
         h = sqrt(p*u)
@@ -28,37 +28,41 @@ class KeplerOrbit(object):
         self.vap = array([0,ecc - 1,0]) * (u/h)
         self.frame = perifocal_frame(inc, lonasc, argpe)
         self.epoch = epoch
+        if ecc < 1:
+            self.period = 2*pi*sqrt(sma**3/u)
+        else:
+            self.period = float('+inf')
     
-    lambert = classmethod(_lambert.lambert)
+    lambert = classmethod(lambert)
     
     @classmethod
     def from_statevector(cls, stv, u, epoch):
         rad = norm(stv.r)
         vel = norm(stv.v)
-        vrad = dot(r,v)/r
-        h = cross(r,v)
+        vrad = (dot(stv.v, stv.r)/dot(stv.r,stv.r))*stv.r
+        h = cross(stv.r,stv.v)
         
-        inc = acos(h[2]/norm(h))
+        inc = arccos(h[2]/norm(h))
         n = cross(unitk,h)
         if norm(n) == 0:
             n = uniti
         if n[1] >= 0:
-            lonasc = acos(n[0]/norm(n))
+            lonasc = arccos(n[0]/norm(n))
         else:
-            lonasc = 2*pi - acos(n[0]/norm(n))
+            lonasc = 2*pi - arccos(n[0]/norm(n))
         
         e = (1/u)*((vel**2-u/rad)*stv.r-rad*vrad*stv.v)
         ecc = norm(e)
         
         if e[2] >= 0:
-            argpe = acos(dot(n,e)/(ecc*norm(n)))
+            argpe = arccos(dot(n,e)/(ecc*norm(n)))
         else:
-            argpe = 2*pi - acos(dot(n,e)/(ecc*norm(n)))
+            argpe = 2*pi - arccos(dot(n,e)/(ecc*norm(n)))
         
         if vrad[0] >= 0:
-            ta = acos(dot(e,stv.r)/(ecc*rad))
+            ta = arccos(dot(e,stv.r)/(ecc*rad))
         else:
-            ta = 2*pi - acos(dot(e,stv.r)/(ecc*rad))
+            ta = 2*pi - arccos(dot(e,stv.r)/(ecc*rad))
         
         slr = dot(h,h)/u
         sma = slr/(1-ecc**2)
@@ -67,11 +71,13 @@ class KeplerOrbit(object):
             Mp = 0.5*tan(ta/2) + (1/6)*tan(ta/2)**3
             dt = Mp/mm
         elif ecc < 1:
-            E = 2*atan(sqrt((1-e)/(1+e))*tan(ta/2))
+            E = 2*arctan(sqrt((1-ecc)/(1+ecc))*tan(ta/2))
             dt = (E - ecc*sin(E))/sqrt(u/sma**3)
         elif ecc > 1:
-            F = ln((sqrt(e+1)+sqrt(e-1)*tan(ta/2))/(sqrt(e+1)-sqrt(e-1)*tan(ta/2)))
+            F = log((sqrt(ecc+1)+sqrt(ecc-1)*tan(ta/2))/(sqrt(ecc+1)-sqrt(ecc-1)*tan(ta/2)))
             dt = (ecc*sinh(F)-F)/sqrt(u/(-sma)**3)
+        else:
+            print(e)
         return cls(ecc, sma, inc, lonasc, argpe, u, epoch-dt)
     
     @classmethod
@@ -79,7 +85,7 @@ class KeplerOrbit(object):
         return cls.from_statevector(state_vector(r,v), u, epoch)
     
     @classmethod
-    def from_parameters(cls, ecc, sma, inc, lonasc, argpe, M0, u, epoch):
+    def from_parameters(cls, sma, ecc, inc, argpe, lonasc, M0, u, epoch):
         if ecc == 1:
             raise NotImplementedError
         elif ecc < 1:
@@ -100,39 +106,62 @@ class KeplerOrbit(object):
     def statevector_by_ta(self, ta):
         return self.frame.tostatevector(self.perifocal_by_ta(ta))
     
-    def statevector_time(self, time):
+    def statevector_by_time(self, time):
         return self.frame.tostatevector(self.perifocal_by_time(time))
     
     def true_anomaly(self, time):
-        X = self.universal_anomaly(time)
+        X = self._universal_anomaly(time)
         e = self.eccentricity
         if e == 1:
             raise NotImplementedError
         elif e < 1:
             E = X/sqrt(self.semimajor_axis)
-            ta = acos((e - cos(E))/(e*cos(E)-1))
+            ta = arccos((e - cos(E))/(e*cos(E)-1))
         elif e > 1:
             F = X/sqrt(-self.semimajor_axis)
-            ta = 2*atan(sqrt((e+1)/(e-1))*tanh(F/2))
-            return ta
+            ta = 2*arctan(sqrt((e+1)/(e-1))*tanh(F/2))
+        return ta
     
-    def unversal_anomaly(self, time):
-        dt = time - self.epoch
+    def time_by_ta(self, ta, t0):
+        offset = self._time_by_ta(ta)
+        assert(offset >= 0)
+        n = int((t0 - (self.epoch+offset))/self.period)
+        return self.period*(n+1) + (self.epoch + offset)
+    
+    def _universal_anomaly(self, time):
+        delt = time - self.epoch
         r0, vr0, u = self.rpe[0], self.vpe[1], self.GM
         a = 1/self.semimajor_axis
         
         def func(x):
             z = a*x**2
-            return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x - sqrt(u)*dt
+            return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x - sqrt(u)*delt
         
-        def funcp(x):
+        def gfunc(x):
             z = a*x**2
             return (r0*vr0/sqrt(u))*x*(1-a*x**2*S(z)) + (1-a*r0)*x**2*C(z) + r0
         
-        return newton(func, abs(a)*sqrt(u)*dt, funcp)
+        return newton(func, abs(a)*sqrt(u)*delt, gfunc)
     
+    def _time_by_ta(self, ta):
+        e, a, u = self.eccentricity, self.semimajor_axis, self.GM
+        if e == 1:
+            raise NotImplementedError
+        elif e < 1:
+            E = 2*arctan(sqrt((1-e)/(1+e))*tan(ta/2))
+            return (E - e*sin(E))/sqrt(u/a**3)
+        elif e > 1:
+            F = log((sqrt(e+1)+sqrt(e-1)*tan(ta/2))/(sqrt(e+1)-sqrt(e-1)*tan(ta/2)))
+            return (e*sinh(F)-F)/sqrt(u/(-a)**3)
+    
+    def _sqrtu_dt(self, x):
+        r0, vr0, u = self.rpe[0], self.vpe[1], self.GM
+        a = 1/self.semimajor_axis
+        z = a*x**2
+        return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x
 
-def parse_kepler(str_parameters):
-    return KeplerOrbit.from_parameters(*(asunits(str_parameters,['_','m','rad','rad','rad','rad','m3_p_sec2','sec'])))
+def parse_kepler(kepler_expr, u, epoch):
+    params = list(asunits(kepler_expr[1:-1].split(','),['m',None,'rad','rad','rad','rad'])) + [u, epoch]
+    return KeplerOrbit.from_parameters(*params)
 
 
