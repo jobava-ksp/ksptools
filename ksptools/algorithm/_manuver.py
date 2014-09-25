@@ -69,4 +69,6 @@ def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
 #                        #
 
 def solve_bielliptic_rondezvous(kepA, kepB):
-    hA = kepA.
+    hA = kepA.specific_angular_momentum
+    hB = kepB.specific_angular_momentum
+    
