@@ -1,6 +1,9 @@
+from . import _ode
+
 from .._kepler import KeplerOrbit as kepler
 from .._vector import state_vector
 from ..path._path import Path as path
+
 from numpy import array, dot, cross, imag, pi, roots, sqrt
 from numpy.linalg import norm
 
@@ -116,3 +119,23 @@ def solve_bielliptic_rondezvous(body, kepA, kepB, ts):
                     path.coast(body, kepT1, tT, tB),
                     path.impulse(body, stvT1f, rvB, tB),
                     path.coast(body, kepB, tB)])
+
+#      #
+# Burn #
+#      #
+
+def solve_burn(body, kepA, kepB, tc, isp, m0, dm):
+    gafunc = _ode.gravity_accel_func(body.GM)
+    dv = kepB.statevector_by_time(tc).v - kepA.statevector_by_time(tc).v
+    tafunc, dmfunc = _ode.thrust_accel_func(dv/norm(dv), isp, dm)
+    
+    def func(x):
+        t0, delt = x
+        stv0 = kepA.statevector_by_time(t0)
+        stv1 = _ode.simrvm(stv0, m0, t0, t0+delt, lambda r,v,t,m: gafunc(r,v,t) + tafunc(r,v,t,m), dmfunc)
+        return norm(kebB.statevector_by_time(t0 + delt)._vector - stv1._vector)
+    
+    ti, delt = minimize(func, [tc, 0]).x
+    return path.burn(body, kepA, kepB, ti, ti+delt)
+
+

@@ -49,6 +49,15 @@ class Impulse(PathNode):
     dv = property(_get_dv)
 
 
+class Burn(Impulse):
+    def __init__(self, ref, kepa, kepb, ti, tf):
+        PathNode.__init__(self,
+            ref, kepa.statevector_by_time(ti), ti,
+            ref, kepb.statevector_by_time(tf), tf)
+        self.orbit_i = kepa
+        self.orbit_f = kepb
+
+
 class Path(PathNode):
     def __init__(self, path_list):
         si = path_list[0].state_i
@@ -65,6 +74,10 @@ class Path(PathNode):
     @staticmethod
     def impulse(ref, stvi, stvf, t):
         return Impulse(ref, stvi, stvf, t)
+    
+    @staticmethod
+    def burn(ref, kepa, kepb, ti, tf):
+        return Burn(kepa, kepb, ti, tf)
     
     def totaldv(self):
         return sum([p.totaldv() for p in self.path_list])
