@@ -1,8 +1,9 @@
 from __future__ import division
 
-from numpy import array, arcsin, cos, arccos, pi
+import numpy
+
+from numpy import array, arcsin, cos, dot, arccos, pi
 from numpy.linalg import norm
-from scipy.integrate import odeint, ode
 
 
 class RVVector(object):
@@ -20,7 +21,10 @@ class RVVector(object):
     
     def __isub__(self, other):
         self._vector -= other._vector
-    
+
+    def __rmul__(self, other):
+        return type(self)(dot(other, self.r).A1, dot(other, self.v).A1)
+
     def _get_r(self):
         return self._vector[0]
     
@@ -50,15 +54,14 @@ class StateVector(RVVector):
 
 
 class PerifocalVector(RVVector):
-    def __init__(self, r, v):
-        RVVector.__init__(r,v)
+    pass
 
 
 def statevector(r,v):
     return StateVector(r,v)
 
 
-def perifocal_vector(r,v):
-    return PerifocalVector(r,v)
+def perifocal_vector(r, v):
+    return PerifocalVector(r, v)
 
 
