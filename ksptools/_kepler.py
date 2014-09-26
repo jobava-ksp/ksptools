@@ -8,7 +8,7 @@ from numpy.linalg import norm
 from scipy.optimize import newton
 
 from ._math import *
-from ._vector import perifocalvector, statevector
+from ._vector import perifocal_vector, statevector
 from ._frame import perifocal_frame
 
 
@@ -132,7 +132,8 @@ class KeplerOrbit(object):
             return 2*pi - arccos(ct)
     
     def true_anomaly_by_distance(self, r):
-        
+        p, e = self.semilatus_rectum, self.eccentricity
+        return arccos((p/r-1)/e)
     
     def time_at_ta(self, ta, ts):
         offset = self.time_anomaly_by_ta(ta) + self.epoch
