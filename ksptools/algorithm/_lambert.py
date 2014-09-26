@@ -1,11 +1,23 @@
 from __future__ import division
+
 from .._math import *
+from .._vector import statevector
+from .._kepler import KeplerOrbit as kepler
 
 from numpy import arccos, cross, dot, pi, sqrt
 from numpy.linalg import norm
 from scipy.optimize import newton
 
-def lambert(kep, r1, t1, r2, t2, u):
+
+def lambert(r1, t1, r2, t2, u):
+    """
+    :type r1: numpy.ndarray
+    :type t1: float
+    :type r2: numpy.ndarray
+    :type t2: float
+    :type u: float
+    :rtype: ksptools._kepler.KeplerOrbit
+    """
     rad1 = norm(r1)
     rad2 = norm(r2)
     cosdta = dot(r1,r2)/(rad1*rad2)
@@ -40,11 +52,11 @@ def lambert(kep, r1, t1, r2, t2, u):
     z = newton(func, 0, funcp)
     f = 1 - y(z)/rad1
     g = A * sqrt(y(z)/u)
-    fp = (sqrt(u)/(rad1*rad2))*sqrt(y(z)/C(z))*(z*S(z)-1)
-    gp = 1 - y(z)/rad2
+    #fp = (sqrt(u)/(rad1*rad2))*sqrt(y(z)/C(z))*(z*S(z)-1)
+    #gp = 1 - y(z)/rad2
     
     v1 = (1/g)*(r2 - f*r1)
-    v2 = (1/g)*(gp*r2 - r1)
+    #v2 = (1/g)*(gp*r2 - r1)
     
-    return kep.from_rvu(r1, v1, u, t1)
-    
+    return kepler.from_statevector(statevector(r1, v1), u, t1)
+

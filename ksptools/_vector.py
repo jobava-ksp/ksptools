@@ -1,6 +1,6 @@
 from __future__ import division
 
-from numpy import array, arcsin, cos, arccos
+from numpy import array, arcsin, cos, arccos, pi
 from numpy.linalg import norm
 from scipy.integrate import odeint, ode
 
@@ -51,11 +51,12 @@ class StateVector(RVVector):
 
 class PerifocalVector(RVVector):
     def __init__(self, r, v):
-        self._vector = array([r,v])
+        RVVector.__init__(r,v)
 
 
 def statevector(r,v):
     return StateVector(r,v)
+
 
 def perifocal_vector(r,v):
     return PerifocalVector(r,v)

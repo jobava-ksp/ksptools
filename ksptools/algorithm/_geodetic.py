@@ -6,10 +6,22 @@ from scipy.optimize import minimize
 
 
 def _Rlat(Re, lat, e):
+    """
+    :type Re: float
+    :type lat: float
+    :type e: float
+    :rtype: float
+    """
     return Re/sqrt(1-(e**2)*(sin(lat)**2))
 
 
 def _gRlat(Re, lat, e):
+    """
+    :type Re: float
+    :type lat: float
+    :type e: float
+    :rtype: numpy.ndarray
+    """
     return array([
             1/sqrt(1-(e**2)*(sin(lat)**2)),
             Re*(e**2)*sin(lat)*cos(lat)/(1-e**2*sin(lat)**2)**(3/2),
@@ -17,13 +29,25 @@ def _gRlat(Re, lat, e):
 
 
 def geodetic_surface(Re, lat, e):
+    """
+    :type Re: float
+    :type lat: float
+    :type e: float
+    :rtype: numpy.ndarray
+    """
     rlat = _Rlat(Re, lat, e)
     return rlat*array([cos(lat), (1-(e**2))*sin(lat)])
 
 
 def geodetic_latitude(r, Re, e):
+    """
+    :type r: numpy.ndarray
+    :type Re: float
+    :type e: float
+    :rtype: float
+    """
     r = array([norm(r[0:2]), r[2]])
-    
+
     def z(lat, h):
         return (_Rlat(Re, lat, e)*(1-e**2) + h)*sin(lat)
     

@@ -1,20 +1,26 @@
 from __future__ import division
 
-import numpy
-import numpy.linalg
+from numpy import array, arccos, arctan, cross, cos, dot, log, pi, sin, sinh, sqrt, tan, tanh
 
-from numpy import arccos, array, arcsin, arctan, cos, cosh, cross, dot, log, mat, pi, sin, sinh, sqrt, tan, tanh
 from numpy.linalg import norm
 from scipy.optimize import newton
 
-from ._math import *
+from ._math import C, S, asunits, uniti, unitk
 from ._vector import perifocal_vector, statevector
 from ._frame import perifocal_frame
 
 
 class KeplerOrbit(object):
-    from .algorithm._lambert import lambert
     def __init__(self, ecc, sma, inc, lonasc, argpe, u, epoch):
+        """
+        :type ecc: float
+        :type sma: float
+        :type inc: float
+        :type lonasc: float
+        :type argpe: float
+        :type u: float
+        :type epoch: float
+        """
         p = sma*(1-ecc**2)
         h = sqrt(p*u)
         self.eccentricity = ecc
@@ -34,14 +40,31 @@ class KeplerOrbit(object):
         else:
             self.period = float('+inf')
     
-    lambert = classmethod(lambert)
+    @staticmethod
+    def lambert(r0, t0, r1, t1, u):
+        """
+        :type r0: numpy.ndarray
+        :type t0: float
+        :type r1: numpy.ndarray
+        :type t1: float
+        :type u: float
+        :rtype: KeplerOrbit
+        """
+        from .algorithm._lambert import lambert
+        return lambert(r0, t0, r1, t1, u)
     
     @classmethod
     def from_statevector(cls, stv, u, epoch):
+        """
+        :type stv: ksptools._vector.StateVector:
+        :type u: float
+        :type epoch: float
+        :rtype: KeplerOrbit
+        """
         rad = norm(stv.r)
         vel = norm(stv.v)
-        vrad = (dot(stv.v, stv.r)/dot(stv.r,stv.r))*stv.r
-        h = cross(stv.r,stv.v)
+        vrad = (dot(stv.v, stv.r)/dot(stv.r, stv.r))*stv.r
+        h = cross(stv.r, stv.v)
         
         inc = arccos(h[2]/norm(h))
         n = cross(unitk,h)
@@ -59,7 +82,7 @@ class KeplerOrbit(object):
             argpe = arccos(dot(n,e)/(ecc*norm(n)))
         else:
             argpe = 2*pi - arccos(dot(n,e)/(ecc*norm(n)))
-        
+
         if vrad[0] >= 0:
             ta = arccos(dot(e,stv.r)/(ecc*rad))
         else:
@@ -77,13 +100,11 @@ class KeplerOrbit(object):
         elif ecc > 1:
             F = log((sqrt(ecc+1)+sqrt(ecc-1)*tan(ta/2))/(sqrt(ecc+1)-sqrt(ecc-1)*tan(ta/2)))
             dt = (ecc*sinh(F)-F)/sqrt(u/(-sma)**3)
-        else:
-            print(e)
         return cls(ecc, sma, inc, lonasc, argpe, u, epoch-dt)
     
-    @classmethod
-    def from_rvu(cls, r, v, u, epoch):
-        return cls.from_statevector(statevector(r,v), u, epoch)
+    #@classmethod
+    #def from_rvu(cls, r, v, u, epoch):
+    #   return cls.from_statevector(statevector(r,v), u, epoch)
     
     @classmethod
     def from_parameters(cls, sma, ecc, inc, argpe, lonasc, M0, u, epoch):
@@ -102,7 +123,7 @@ class KeplerOrbit(object):
         return perifocal_vector((p/(1+e*cos(ta)))*ru, (u/h)*vu)
     
     def perifocal_by_time(self, time):
-        return self.perifocal_by_ta(self.true_anomaly(time))
+        return self.perifocal_by_ta(self.true_anomaly_by_time(time))
     
     def statevector_by_ta(self, ta):
         return self.frame.tostatevector(self.perifocal_by_ta(ta))
@@ -110,7 +131,7 @@ class KeplerOrbit(object):
     def statevector_by_time(self, time):
         return self.frame.tostatevector(self.perifocal_by_time(time))
     
-    def true_anomaly(self, time):
+    def true_anomaly_by_time(self, time):
         X = self._universal_anomaly(time)
         e = self.eccentricity
         if e == 1:
@@ -135,7 +156,7 @@ class KeplerOrbit(object):
         p, e = self.semilatus_rectum, self.eccentricity
         return arccos((p/r-1)/e)
     
-    def time_at_ta(self, ta, ts):
+    def time_by_ta(self, ta, ts):
         offset = self.time_anomaly_by_ta(ta) + self.epoch
         n = int((ts - offset)/self.period)
         return offset + (n+1)*self.period
@@ -166,11 +187,11 @@ class KeplerOrbit(object):
             F = log((sqrt(e+1)+sqrt(e-1)*tan(ta/2))/(sqrt(e+1)-sqrt(e-1)*tan(ta/2)))
             return (e*sinh(F)-F)/sqrt(u/(-a)**3)
     
-    def _sqrtu_dt(self, x):
-        r0, vr0, u = self.rpe[0], self.vpe[1], self.GM
-        a = 1/self.semimajor_axis
-        z = a*x**2
-        return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x
+    #def _sqrtu_dt(self, x):
+    #    r0, vr0, u = self.rpe[0], self.vpe[1], self.GM
+    #    a = 1/self.semimajor_axis
+    #    z = a*x**2
+    #    return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x
 
 
 def parse_kepler(kepler_expr, u, epoch):

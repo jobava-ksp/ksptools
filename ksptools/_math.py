@@ -1,5 +1,7 @@
 import re
 from numpy import array, cos, cosh, mat, pi, sin, sinh, sqrt
+from numpy.linalg import norm
+
 
 uniti = array([1,0,0])
 unitj = array([0,1,0])
@@ -51,13 +53,16 @@ def S(z):
 
 
 class UnitMetaClass(type):
-    def __getitem__(cls, value):
-        return cls._units[value]
+    def __getitem__(cls, key):
+        return cls._units[key]
+
+    def __setitem__(cls, key, value):
+        cls._units[key] = value
 
 
 class Unit(object):
     __metaclass__ = UnitMetaClass
-    
+
     def __init__(self, name):
         self.name = name
         self._cfa = {name: 1}
@@ -149,8 +154,10 @@ Unit.addunit('K',
      'F': (1.8, -459.67),
      'R': (1.8, 0)})
 
+
 def asunit(value, unit):
     return Unit.parseto(value, unit)
+
 
 def asunits(values, units):
     return array([Unit.parseto(v,u) for v, u in zip(values, units)])

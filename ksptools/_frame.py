@@ -1,13 +1,14 @@
 from __future__ import division
 
-from numpy import array, cos, cross, dot, mat, pi, sin, sqrt, zeros
+from numpy import array, arccos, cos, cross, dot, mat, pi, sin, sqrt, zeros
 from numpy.linalg import norm
 from ._math import rotz, rotzxz, asunits, uniti, unitk, unitj
 from ._vector import statevector
 from .algorithm._geodetic import geodetic_latitude
 
+
 class Frame(object):
-    def __init__(object):
+    def __init__(self):
         pass
     
     def uniti(self, t):
@@ -22,7 +23,7 @@ class Frame(object):
 
 class InertialFrame(Frame):
     def __init__(self):
-        pass
+        Frame.__init__(self)
         
     def toinertial(self, stv, t):
         return stv
@@ -42,6 +43,7 @@ class InertialFrame(Frame):
 
 class ConstantDisplacementFrame(InertialFrame):
     def __init__(self, origin):
+        InertialFrame.__init__(self)
         self.origin = origin
     
     def toinertial(self, stv, t):
@@ -53,6 +55,7 @@ class ConstantDisplacementFrame(InertialFrame):
 
 class FunctionalDisplacementFrame(InertialFrame):
     def __init__(self, origin_func):
+        InertialFrame.__init__(self)
         self._rvfunc = origin_func
     
     def toinertial(self, stv, t):
@@ -66,6 +69,7 @@ class FunctionalDisplacementFrame(InertialFrame):
 
 class ConstantOrientationFrame(Frame):
     def __init__(self, A):
+        Frame.__init__(self)
         self._A = A
         self._AI = A.I
     
@@ -87,6 +91,7 @@ class ConstantOrientationFrame(Frame):
 
 class ConstantRotationFrame(Frame):
     def __init__(self, A, w):
+        Frame.__init__(self)
         self._A = A
         self._AI = A.I
         self._w = w
@@ -145,7 +150,7 @@ class OrbitalFrame(FunctionalDisplacementFrame):
         self.orbit = orbit
     
     def _displacement(self, t):
-        return orbit._statevector_by_time(t)
+        return self.orbit.statevector_by_time(t)
 
 
 class RotatingEllipsoide(object):
@@ -160,15 +165,15 @@ class RotatingEllipsoide(object):
         return self.Re/sqrt(1-self.e**2*sin(lat)**2)
     
     def uniti(self, lat, lon, t):
-        st = self._w * t
+        st = self._w * t + lon
         return array([-sin(st), cos(st), 0])
     
     def unitj(self, lat, lon, t):
-        st = self._w * t
+        st = self._w * t + lon
         return array([-sin(lat)*cos(st), -sin(lat)*sin(st), cos(lat)])
     
     def unitk(self, lat, lon, t):
-        st = self._w * t
+        st = self._w * t + lon
         return array([cos(lat)*cos(st), cos(lat)*sin(st), sin(lat)])
     
     def surface_inertial_vector(self, lat, lon, altitude, t, v=zeros(3)):
@@ -198,22 +203,28 @@ class RotatingEllipsoide(object):
 def inertial_frame():
     return InertialFrame()
 
+
 def geodetic_frame(Rp, Re, inc, lonasc, argve, period):
     return RotatingEllipsoide(Rp,Re,inc,lonasc,argve,(2*pi)/period)
+
 
 def parse_geodetic_frame(geodetic_expr):
     expr_list = [e.strip() for e in geodetic_expr[1:-1].split(',')]
     Re, Rp, inc, lonasc, argve, period = asunits(expr_list, ['m','m','rad','rad','rad','sec'])
     return RotatingEllipsoide(Rp, Re, inc, lonasc, argve, (2*pi)/period)
 
+
 def geocentric_frame(inc, lonasc, argve):
     return GeocentricFrame(inc, lonasc, argve)
+
 
 def perifocal_frame(inc, lonasc, argpe):
     return PerifocalFrame(inc, lonasc, argpe)
 
+
 def orbital_frame(orbit):
     return OrbitalFrame(orbit)
+
 
 def parse_orbital_frame(kepler_expr, u, epoch):
     from ._kepler import parse_kepler
