@@ -8,7 +8,7 @@ from numpy.linalg import norm
 from scipy.optimize import newton
 
 from ._math import *
-from ._vector import perifocal_vector, state_vector
+from ._vector import perifocalvector, statevector
 from ._frame import perifocal_frame
 
 
@@ -83,7 +83,7 @@ class KeplerOrbit(object):
     
     @classmethod
     def from_rvu(cls, r, v, u, epoch):
-        return cls.from_statevector(state_vector(r,v), u, epoch)
+        return cls.from_statevector(statevector(r,v), u, epoch)
     
     @classmethod
     def from_parameters(cls, sma, ecc, inc, argpe, lonasc, M0, u, epoch):
@@ -130,6 +130,9 @@ class KeplerOrbit(object):
             return arccos(ct)
         else:
             return 2*pi - arccos(ct)
+    
+    def true_anomaly_by_distance(self, r):
+        
     
     def time_at_ta(self, ta, ts):
         offset = self.time_anomaly_by_ta(ta) + self.epoch

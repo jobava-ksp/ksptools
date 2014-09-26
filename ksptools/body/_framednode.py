@@ -11,4 +11,11 @@ class FramedNode(Node):
     
     def toinertial(self, rv, t):
         return self.frame.toinertial(rv, t)
+    
+    def relative_statevector(self, node, stv, t):
+        return self.walk(
+            node,
+            stv,
+            lambda p, next, x: p.toinertial(x, t),
+            lambda p, next, x: p.tolocal(x, t))
 

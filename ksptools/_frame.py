@@ -3,7 +3,7 @@ from __future__ import division
 from numpy import array, cos, cross, dot, mat, pi, sin, sqrt, zeros
 from numpy.linalg import norm
 from ._math import rotz, rotzxz, asunits, uniti, unitk, unitj
-from ._vector import state_vector
+from ._vector import statevector
 from .algorithm._geodetic import geodetic_latitude
 
 class Frame(object):
@@ -70,10 +70,10 @@ class ConstantOrientationFrame(Frame):
         self._AI = A.I
     
     def toinertial(self, stv, t):
-        return state_vector(dot(self._AI, stv.r).A1, dot(self._AI, stv.v).A1)
+        return statevector(dot(self._AI, stv.r).A1, dot(self._AI, stv.v).A1)
     
     def tolocal(self, stv, t):
-        return state_vector(dot(self._A, stv.r).A1, dot(self._A, stv.v).A1)
+        return statevector(dot(self._A, stv.r).A1, dot(self._A, stv.v).A1)
     
     def uniti(self, t):
         return self._A[0].A1
@@ -98,13 +98,13 @@ class ConstantRotationFrame(Frame):
         A = self._tolocal_A(t).I
         r = dot(A, stv.r).A1
         v = dot(A, stv.v + cross(unitk*self._w, stv.r)).A1
-        return state_vector(r, v)
+        return statevector(r, v)
     
     def tolocal(self, stv, t):
         A = self._tolocal_A(t)
         r = dot(A, stv.r).A1
         v = dot(A, stv.v).A1 - cross(unitk*self._w, r)
-        return state_vector(r, v)
+        return statevector(r, v)
     
     def uniti(self, t):
         return self._tolocal_A(t)[0].A1
@@ -133,7 +133,7 @@ class PerifocalFrame(GeocentricFrame):
     def tostatevector(self, loc):
         rp = array(list(loc.r) + [0])
         vp = array(list(loc.v) + [0])
-        return state_vector(dot(self._A, rp).A1, dot(self._A, vp).A1)
+        return statevector(dot(self._A, rp).A1, dot(self._A, vp).A1)
     
     def tolocalvector(self, stv):
         return dot(self._A.T, stv.r).A1[0:2], dot(self._A.T, stv.v).A1[0:2]
@@ -176,7 +176,7 @@ class RotatingEllipsoide(object):
         r0 = array([Rlat*cos(lat), 0, Rlat*(1-self.f)**2*sin(lat)]) + self.unitk(lat, 0, 0)
         v0 = cross(array([0,0,self._w]), r0) + v
         A = dot(rotz(t*self._w), self._A)
-        return state_vector(dot(A.T,r0).A1, dot(A.T,v0).A1)
+        return statevector(dot(A.T,r0).A1, dot(A.T,v0).A1)
     
     def geodetic_llav(self, stv, t):
         lat, alt = geodetic_latitude(stv.r, self.Re, self.e)

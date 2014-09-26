@@ -1,6 +1,8 @@
 import pickle
+from numpy import zeros
 from ._body import Body
 from ._atmosphere import parse_atmosphere
+from .._vector import statevector
 from .._frame import inertial_frame
 from .._frame import parse_geodetic_frame, parse_orbital_frame
 
@@ -12,6 +14,10 @@ class CelestialBody(Body):
         self.surface = geodetic_surface
         self.surface_frame = geodetic_surface.frame
         self.atmosphere = None
+        self.soi = soi
+    
+    def statevector(self, t):
+        return self.frame.toinertial(statevector(zeros(3), zeros(3)), t)
 
 
 class System(object):

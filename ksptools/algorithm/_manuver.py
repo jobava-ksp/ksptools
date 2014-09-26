@@ -1,10 +1,11 @@
 from . import _ode
 
 from .._kepler import KeplerOrbit as kepler
-from .._vector import state_vector
+from .._vector import statevector
+from .._math import unitk, unit
 from ..path._path import Path as path
 
-from numpy import array, dot, cross, imag, pi, roots, sqrt
+from numpy import array, arccos, dot, cross, imag, pi, roots, sqrt
 from numpy.linalg import norm
 
 #         #
@@ -48,14 +49,14 @@ def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
     hB = sqrt(2*u)*sqrt((r0*r1)/(r0+r1))
     
     ## Transfer orbit (kepT) and state vectors at tA and tB (stvTi, stvTf)
-    vTi = cross(kepA.normal, stvA.r/norm(stvA.r))*(hT/norm(stvA.r))
-    stvTi = state_vector(stvA.r, vTi)
+    vTi = cross(kepA.normal, unit(stvA.r)*(hT/norm(stvA.r))
+    stvTi = statevector(stvA.r, vTi)
     kepT = kepler.from_statevector(stvTi, u, tA)
     tB = tA + kepT.period/2.0
     stvTf = kepT.statevector_by_time(tB)
     
     ## final orbit (kepB)
-    stvB = state_vector(stvTf.r, (stvTf.v/norm(stvTf.v))*(hB/norm(stvTf.r)))
+    stvB = statevector(stvTf.r, unit(stvTf.v)*(hB/norm(stvTf.r)))
     kepB = kepler.from_statevector(stvB, u, tB)
     
     return path([
@@ -70,10 +71,8 @@ def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
 #                        #
 
 def solve_bielliptic_rondezvous(body, kepA, kepB, ts):
-    rel_an = cross(kepA.normal, kspB.normal) # relative ascending node
-    rel_dn = -rel_dn                         # relative descending node
-    rel_an = rel_an/norm(rel_an)             # both as unit vectors
-    rel_dn = rel_dn/norm(rel_dn)
+    rel_an = unit(cross(kepA.normal, kspB.normal)) # relative ascending node
+    rel_dn = -unit(rel_dn)                         # relative descending node
     
     def solve_at_node(node, n, m):
         thetaA = kepA.true_anomaly_by_vector(node)
@@ -104,8 +103,8 @@ def solve_bielliptic_rondezvous(body, kepA, kepB, ts):
                 tT = (rA + rT)**3/(16*body.GM) + tA
                 vT0i = cross(kepA.normal, rvA.r/rA)*(hT0/rA)
                 vT1f = cross(kepB.normal, rvB.r/rB)*(hT1/rB)
-                stvT0i = state_vector(rvA.r, vT0i)
-                stvT1f = state_vector(rvB.r, vT1f)
+                stvT0i = statevector(rvA.r, vT0i)
+                stvT1f = statevector(rvB.r, vT1f)
                 kepT0 = kepler.from_statevector(stvT0i, body.GM, tA)
                 kepT1 = kepler.from_statevector(stvT1f, body.GM, tB)
                 stvT0f = kepT0.statevector_by_time(tT)
@@ -127,7 +126,7 @@ def solve_bielliptic_rondezvous(body, kepA, kepB, ts):
 def solve_burn(body, kepA, kepB, tc, isp, m0, dm):
     gafunc = _ode.gravity_accel_func(body.GM)
     dv = kepB.statevector_by_time(tc).v - kepA.statevector_by_time(tc).v
-    tafunc, dmfunc = _ode.thrust_accel_func(dv/norm(dv), isp, dm)
+    tafunc, dmfunc = _ode.thrust_accel_func(unit(dv), isp, dm)
     
     def func(x):
         t0, delt = x
@@ -137,5 +136,28 @@ def solve_burn(body, kepA, kepB, tc, isp, m0, dm):
     
     ti, delt = minimize(func, [tc, 0]).x
     return path.burn(body, kepA, kepB, ti, ti+delt)
+
+
+def solve_ejection_prograde(body, stv0, t0, rpe, sun=None):
+    if sun is None:
+        sun = body.parent_node
+    
+    ### orbital parameters (perifocal) ###
+    vesc = sun.relative_statevector(body, stv0, t0).v
+    spec_energy = dot(vesc,vesc)/2 - body.GM/body.soi
+    sma = -body.GM/(2*spec_energy)
+    e = 1 + rpe * dot(vesc, vesc)/body.GM
+    p = sma * (1-e**2)
+    vpe = sqrt(dot(vesc, vesc) + 2*body.GM/rpe)
+    
+    ### orientation ###
+    ta = arccos(((p/rpe)-1)/e) # angle from apse line / true anomaly
+    B = arccos(1/e)            # angle of assymptote
+    normal = unit(corss(cross(vesc, unitk), vesc))
+    r0 = rpe * dot(rotaxis(normal, B), (-unit(vesc))).A1
+    v0 = vpe * unit(cross(noraml, r0))
+    
+    kepA = kepler.from_statevector(statevector(r0, v0), body.GM, t0)
+    tf = kepA.true_anomaly_by_distance(
 
 

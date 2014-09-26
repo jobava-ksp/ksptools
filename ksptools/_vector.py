@@ -54,7 +54,7 @@ class PerifocalVector(RVVector):
         self._vector = array([r,v])
 
 
-def state_vector(r,v):
+def statevector(r,v):
     return StateVector(r,v)
 
 def perifocal_vector(r,v):
