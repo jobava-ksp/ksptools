@@ -176,10 +176,10 @@ class RotatingEllipsoide(object):
         st = self._w * t + lon
         return array([cos(lat)*cos(st), cos(lat)*sin(st), sin(lat)])
     
-    def surface_inertial_statevector(self, lat, lon, altitude, t, v=zeros(3)):
+    def surface_inertial_statevector(self, lat, lon, altitude, t):
         rlat = self.surface_height(lat)
         r0 = array([rlat*cos(lat), 0, rlat*(1-self.f)**2*sin(lat)]) + altitude*self.unitk(lat, 0, 0)
-        v0 = cross(self.unit, r0) + v
+        v0 = cross(self.unit, r0)
         return self.frame.toinertial(statevector(r0,v0), t)
     
     def geodetic_llav(self, stv, t):
@@ -199,8 +199,43 @@ class RotatingEllipsoide(object):
         return alt
 
 
+class SurfaceFrame(Frame):
+    def __init__(self, surface, lat, lon, alt):
+        self.surface = surface
+        self.lat, self.lon, self.alt = lat, lon, alt
+    
+    def uniti(self, t):
+        return self.surface.uniti(self.lat, self.lon, t)
+    
+    def unitj(self, t):
+        return self.surface.unitj(self.lat, self.lon, t)
+    
+    def unitk(self, t):
+        return self.surface.unitk(self.lat, self.lon, t)
+    
+    def tolocal(self, stv, t):
+        origin = self.surface.surface_inertial_statevector(self.lat, self.lon, self.alt, t)
+        A = mat([self.uniti(t), self.unitj(t), self.unitk(t)])
+        return A*(stv - origin)
+    
+    def toinertial(self, stv, t):
+        origin = self.surface.surface_inertial_statevector(self.lat, self.lon, self.alt, t)
+        A = mat([self.uniti(t), self.unitj(t), self.unitk(t)])
+        return A.I*stv + origin
+
+
 def inertial_frame():
     return InertialFrame()
+
+
+def surface_frame(surface, lat, lon, alt):
+    return SurfaceFrame(surface, lat, lon, alt)
+
+
+def parse_surface_frame(surface, lla_expr):
+    expr_list = [e.strip() for e in lla_expr[1:-1].split(',')]
+    lat, lon, alt = asunits(expr_list, ['rad', 'rad', 'm'])
+    return surface_frame(surface, lat, lon, alt)
 
 
 def geodetic_frame(Rp, Re, inc, lonasc, argve, period):

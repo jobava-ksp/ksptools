@@ -17,7 +17,7 @@ class CelestialBody(Body):
         self.soi = soi
     
     def statevector(self, t):
-        return self.frame.toinertial(statevector(zeros(3), zeros(3)), t)
+        return self.frame.toinertial(statevector.zero(), t)
     
     def atm_state(self, stv, t):
         if self.atmosphere is None:
@@ -53,6 +53,8 @@ class System(object):
             cbody.atmosphere = parse_atmosphere(cbody, atm_expr)
         self._addbody(keyname, name, cbody)
         return cbody
+    
+    def site(self, keyname, name, parent_keyname,
     
     def export(self, fname):
         with open(fname, 'w') as f:

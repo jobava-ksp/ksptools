@@ -37,6 +37,14 @@ class RVVector(object):
     def _set_v(self, v):
         self._vector[1] = v
     
+    @classmethod
+    def _dims(cls):
+        raise NotImplementedError
+    
+    @classmethod
+    def zero(cls):
+        return cls(zeros(cls.dims()), zeros(cls.dims()))
+    
     r = property(_get_r, _set_r)
     v = property(_get_v, _set_v)
 
@@ -50,18 +58,21 @@ class StateVector(RVVector):
             return decl, arccos(l/cos(decl)), s
         else:
             return decl, 2*pi - arccos(l/cos(decl)), s
+    
+    @classmethod
+    def _dims(cls):
+        return 3
+    
     dar = property(_get_dar)
 
 
 class PerifocalVector(RVVector):
-    pass
+    @classmethod
+    def _dims(cls):
+        return 2
 
 
-def statevector(r,v):
-    return StateVector(r,v)
-
-
-def perifocal_vector(r, v):
-    return PerifocalVector(r, v)
+statevector = StateVector
+perifocal_vector = PerifocalVector
 
 
