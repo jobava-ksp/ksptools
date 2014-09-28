@@ -29,11 +29,17 @@ class CelestialBody(Body):
 class System(object):
     def __init__(self):
         self.bodies = dict()
+        self.sites = dict()
         self.keynames = dict()
         self.names = dict()
     
     def _addbody(self, keyname, name, body):
         self.bodies[keyname] = body
+        self.keynames[name] = keyname
+        self.names[keyname] = name
+    
+    def _addsite(self, keyname, name, site):
+        self.sites[keyname] = site
         self.keynames[name] = keyname
         self.names[keyname] = name
     
@@ -54,7 +60,11 @@ class System(object):
         self._addbody(keyname, name, cbody)
         return cbody
     
-    def site(self, keyname, name, parent_keyname,
+    def site(self, keyname, name, parent_keyname, lla_expr):
+        lat, lon, alt = asunits(lla_expr[1:-1].split(','),['rad', 'rad', 'm'])
+        site = StaticSite(self.bodies[parent_name], lat, lon, alt)
+        self._addsite(keyname, name, site)
+        return site
     
     def export(self, fname):
         with open(fname, 'w') as f:

@@ -100,9 +100,9 @@ class Controller(object):
     
     def _accel_dm(self, r, v, m, t, body):
         cls = type(self)
-        engine_state, d = self.update(r,v,m,t,body)
+        engine_state, d = self.update(r, v, m, t, body)
         
-        p, a, _, v_air = body.atm_state(statevector(r,v),t)
+        p, a, _, v_air = body.atm_state(statevector(r, v),t)
         T, ff = cls._thrust_state(a, engine_state)
         
         accel = cls._accel_g(r,body) + cls._accel_thrust(d, T, m) + cls._accel_drag(p, v_air, coefd)
@@ -120,5 +120,15 @@ class Controller(object):
         rvm1 = odeint(self._ode_func, rvm0, [t, t+dt])[-1]
         return rvm1[0:3], rvm1[3:6], rvm1[6]
     
+    def sim(self, stv, m, t, dt, pred=None):
+        r, v = stv.r, stv.v
+        if pred is None:
+            r, v, m = self._step(r, v, m, t, dt)
+            t += dt
+        else:
+            while pred(r0, v0, m0, t):
+                r, v, m = self._step(r, v, m, t, dt)
+                t += dt
+        return statevector(r,v), m
     
     

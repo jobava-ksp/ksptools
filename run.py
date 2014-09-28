@@ -13,7 +13,7 @@ kerbin = ksys['kerbin']
 mun = ksys['mun']
 duna = ksys['duna']
 
-stv = mun.tolocal(mun.statevector(0), 0)
+stv = statevector.zero()
 
 def print_stv(stv):
     print("<{}*{},{}*{}>".format(la.norm(stv.r), stv.r/la.norm(stv.r), la.norm(stv.v), stv.v/la.norm(stv.v)))
