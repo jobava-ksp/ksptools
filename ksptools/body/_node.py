@@ -10,7 +10,7 @@ class Node(object):
             parent_node._add(self)
     
     def __eq__(self, other):
-        self._id == other._id
+        return self._id == other._id
     
     def __hash__(self):
         return hash(self._id)
@@ -42,7 +42,8 @@ class Node(object):
                 root_path_from = root_path_from[:-1]
                 root_path_to = root_path_to[:-1]
             else:
-                return root_path_from + [root], reversed(root_path_to)
+                break
+        return root_path_from + [root], reversed(root_path_to)
     
     def walk(self, to_node, x, fdown, fup):
         iterdown, iterup = Node._path(self, to_node)
@@ -50,7 +51,7 @@ class Node(object):
         for next in list(iterdown)[1:]:
             x = fdown(prev, next, x)
             prev = next
-        for next in iterup:
+        for next in list(iterup):
             x = fup(prev, next, x)
             prev = next
         return x

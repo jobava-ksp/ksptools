@@ -20,9 +20,10 @@ class Atmosphere(Field):
         if alt < self.height:
             p = self.p_sl * pow(np.e, -alt/self.scale_height)
             a = self.atm_sl * pow(np.e, -alt/self.scale_height)
-            return p, a, v
+            va = self.surface.surface_inertial_statevector(lat, lon, alt, t)
+            return p, a, v, stv.v - va
         else:
-            return 0, 0, np.zeros(3)
+            return 0, 0, np.zeros(3), np.zeros(3)
     
 
 def parse_atmosphere(parent, atm_expr):

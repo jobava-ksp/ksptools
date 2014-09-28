@@ -138,10 +138,10 @@ class PerifocalFrame(GeocentricFrame):
     def tostatevector(self, loc):
         rp = array(list(loc.r) + [0])
         vp = array(list(loc.v) + [0])
-        return statevector(dot(self._A, rp).A1, dot(self._A, vp).A1)
+        return statevector(rp, vp)
     
     def tolocalvector(self, stv):
-        return dot(self._A.T, stv.r).A1[0:2], dot(self._A.T, stv.v).A1[0:2]
+        return stv.r[0:2], stv.v[0:2]
 
 
 class OrbitalFrame(FunctionalDisplacementFrame):
@@ -176,12 +176,11 @@ class RotatingEllipsoide(object):
         st = self._w * t + lon
         return array([cos(lat)*cos(st), cos(lat)*sin(st), sin(lat)])
     
-    def surface_inertial_vector(self, lat, lon, altitude, t, v=zeros(3)):
-        Rlat = self.surface_height(lat)
-        r0 = array([Rlat*cos(lat), 0, Rlat*(1-self.f)**2*sin(lat)]) + self.unitk(lat, 0, 0)
-        v0 = cross(array([0,0,self._w]), r0) + v
-        A = dot(rotz(t*self._w), self._A)
-        return statevector(dot(A.T,r0).A1, dot(A.T,v0).A1)
+    def surface_inertial_statevector(self, lat, lon, altitude, t, v=zeros(3)):
+        rlat = self.surface_height(lat)
+        r0 = array([rlat*cos(lat), 0, rlat*(1-self.f)**2*sin(lat)]) + altitude*self.unitk(lat, 0, 0)
+        v0 = cross(self.unit, r0) + v
+        return self.frame.toinertial(statevector(r0,v0), t)
     
     def geodetic_llav(self, stv, t):
         lat, alt = geodetic_latitude(stv.r, self.Re, self.e)

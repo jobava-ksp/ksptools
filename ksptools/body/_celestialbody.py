@@ -18,6 +18,12 @@ class CelestialBody(Body):
     
     def statevector(self, t):
         return self.frame.toinertial(statevector(zeros(3), zeros(3)), t)
+    
+    def atm_state(self, stv, t):
+        if self.atmosphere is None:
+            return 0, 0, zeros(3), zeros(3)
+        else:
+            return self.atmposphere.atm_state(stv, t)
 
 
 class System(object):
@@ -39,7 +45,7 @@ class System(object):
     def cbody(self, keyname, name, parent_keyname, u, soi, geodetic_expr, orbit_expr, atm_expr=None):
         cbody = CelestialBody(
             self.bodies[parent_keyname],
-            parse_orbital_frame(orbit_expr, u, 0),
+            parse_orbital_frame(orbit_expr, self.bodies[parent_keyname].GM, 0),
             u,
             soi,
             parse_geodetic_frame(geodetic_expr))
