@@ -5,7 +5,7 @@ from ._field import Field
 
 class Atmosphere(Field):
     def __init__(self, parent_node, p_sl, atm_sl, height, scale_height, min_temp, max_temp, has_oxygen):
-        Field.__init__(self, parent_node)
+        Field.__init__(self, parent_node, parent_node.surface_frame)
         self.p_sl = p_sl
         self.atm_sl = atm_sl
         self.height = height
@@ -15,15 +15,21 @@ class Atmosphere(Field):
         self.has_oxygen = has_oxygen
         self.surface = parent_node.surface
     
-    def atm_state(self, stv, t):
-        lat, lon, alt, v = self.surface.geodetic_llav(stv, t)
+    def atmstate_by_statevector(self, stv, t):
+        _, _, alt, _ = self.surface.geodetic_llav(stv, t)
+        if alt < self.height:
+            return self.atmstate_by_alt(alt)
+        else:
+            return 0, 0, np.zeros(3), np.zeros(3)
+    
+    def atmstate_by_alt(self, alt, t):
         if alt < self.height:
             p = self.p_sl * pow(np.e, -alt/self.scale_height)
             a = self.atm_sl * pow(np.e, -alt/self.scale_height)
             va = self.surface.surface_inertial_statevector(lat, lon, alt, t)
-            return p, a, v, stv.v - va
+            return p, a, v
         else:
-            return 0, 0, np.zeros(3), np.zeros(3)
+            return 0, 0, np.zeros(3)
     
 
 def parse_atmosphere(parent, atm_expr):

@@ -165,21 +165,21 @@ class RotatingEllipsoide(object):
         return self.Re/sqrt(1-self.e**2*sin(lat)**2)
     
     def uniti(self, lat, lon, t):
-        st = self._w * t + lon
-        return array([-sin(st), cos(st), 0])
+        u = array([-sin(st), cos(st), 0])
+        return dot(self.frame._A, u).A1
     
     def unitj(self, lat, lon, t):
-        st = self._w * t + lon
-        return array([-sin(lat)*cos(st), -sin(lat)*sin(st), cos(lat)])
+        u = array([-sin(lat)*cos(st), -sin(lat)*sin(st), cos(lat)])
+        return dot(self.frame._A, u).A1
     
     def unitk(self, lat, lon, t):
-        st = self._w * t + lon
-        return array([cos(lat)*cos(st), cos(lat)*sin(st), sin(lat)])
+        u = array([cos(lat)*cos(st), cos(lat)*sin(st), sin(lat)])
+        return dot(self.frame._A, u).A1
     
     def surface_inertial_statevector(self, lat, lon, altitude, t):
         rlat = self.surface_height(lat)
         r0 = array([rlat*cos(lat), 0, rlat*(1-self.f)**2*sin(lat)]) + altitude*self.unitk(lat, 0, 0)
-        v0 = cross(self.unit, r0)
+        v0 = zeros(3)
         return self.frame.toinertial(statevector(r0,v0), t)
     
     def geodetic_llav(self, stv, t):

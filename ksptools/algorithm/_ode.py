@@ -79,8 +79,8 @@ class Controller(object):
         return -(unit(r))*(body.GM/dot(r,r))
     
     @classmethod
-    def _accel_thrust(cls, d, T, m):
-        return d*T/m
+    def _accel_thrust(cls, Tdird, T, m):
+        return Tdir*T/m
     
     @classmethod
     def _accel_drag(cls, p, v_air, coefd):
@@ -88,7 +88,7 @@ class Controller(object):
     
     @classmethod
     def _thrust_state(cls, a, engine_state):
-        if self.engin_state is not None:
+        if engin_state is not None:
             Tmax, isp_0, isp_1, throttle = engine_state
             isp = isp_0 + min(1, max(0, a))*(isp_1 - isp_0)
             Tmax = isp_0 * ff * spconst.g
@@ -98,36 +98,59 @@ class Controller(object):
         else:
             return 0, 0
     
-    def _accel_dm(self, r, v, m, t, body):
+    def _update(self, m_rv, body_ijk_llav, pav, t):
+        raise NotImplementedError
+    
+    def _do_state(self, r, v, m, body, t):
         cls = type(self)
-        engine_state, d = self.update(r, v, m, t, body)
+        lat, lon, alt, v_air = body.llav(statevector(r,v), t)
+        si, sj, sk = body.ijk_by_lla(lat, lon, alt)
+        p, atm = body.atmstate_by_alt(alt, t)
+        return (m, r, v), (body, si, sj, sk, lat, lon, alt), (p, atm, v_air), t
+    
+    def _do_control(self, m_rv, body_ijk_lla, pav, t):
+        return self._update(m_rv, body_ijk_lla, pav, t)
+    
+    def _accel_dm(self, state, control):
+        cls = type(self)
+        ## state ##
+        m_rv, body_ijk_llav, pav, t = state
+        m, r, v = m_rv
+        body, _, _, _, _, _, alt = body_ijk_lla
+        p, a, v_air = pav
         
-        p, a, _, v_air = body.atm_state(statevector(r, v),t)
+        ## control ##
+        engine_state, coefd, Tdir = control
         T, ff = cls._thrust_state(a, engine_state)
         
-        accel = cls._accel_g(r,body) + cls._accel_thrust(d, T, m) + cls._accel_drag(p, v_air, coefd)
+        accel = cls._accel_g(r,body) + cls._accel_thrust(Tdir, T, m) + cls._accel_drag(p, v-v_air, coefd)
         return accel, ff
     
-    def _ode_func(self, y, t):
-        r = y[0:3]
-        v = y[3:6]
-        m = y[6]
-        a, dm = self._accel_dm(r, v, m, t)
-        return concatenate((v,a,[dm]))
+    def _ode_func(self, body):
+        def func(self, y, t):
+            r = y[0:3]
+            v = y[3:6]
+            m = y[6]
+            state = self._do_state(r,v,m,body,t)
+            control = self._do_control(*state)
+            a, dm = self._accel_dm(state, control)
+            return concatenate((v,a,[dm]))
+        return func
     
-    def _step(self, r, v, m, t, dt):
+    def _step(self, r, v, m, t, dt, odefunc):
         rvm0 = concatenate((r,v,[m]))
-        rvm1 = odeint(self._ode_func, rvm0, [t, t+dt])[-1]
+        rvm1 = odeint(odefunc, rvm0, [t, t+dt])[-1]
         return rvm1[0:3], rvm1[3:6], rvm1[6]
     
-    def sim(self, stv, m, t, dt, pred=None):
+    def sim(self, stv, m, t, dt, body, pred=None):
         r, v = stv.r, stv.v
+        func = self._ode_func(body)
         if pred is None:
-            r, v, m = self._step(r, v, m, t, dt)
+            r, v, m = self._step(r, v, m, t, dt, func)
             t += dt
         else:
-            while pred(r0, v0, m0, t):
-                r, v, m = self._step(r, v, m, t, dt)
+            while pred(r, v, m, t):
+                r, v, m = self._step(r, v, m, t, dt, func)
                 t += dt
         return statevector(r,v), m
     

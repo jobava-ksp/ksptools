@@ -1,8 +1,8 @@
 from __future__ import division
 
-import numpy
+from ._math import unit
 
-from numpy import array, arcsin, cos, dot, arccos, pi
+from numpy import array, arcsin, cos, dot, arccos, pi, zeros
 from numpy.linalg import norm
 
 
@@ -43,7 +43,12 @@ class RVVector(object):
     
     @classmethod
     def zero(cls):
-        return cls(zeros(cls.dims()), zeros(cls.dims()))
+        return cls(zeros(cls._dims()), zeros(cls._dims()))
+    
+    def __str__(self):
+        return '[{}*<{}>, {}*<{}>]'.format(
+            norm(self.r), ','.join(map(str,unit(self.r))),
+            norm(self.v), ','.join(map(str,unit(self.v))))
     
     r = property(_get_r, _set_r)
     v = property(_get_v, _set_v)

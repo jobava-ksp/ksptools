@@ -10,6 +10,16 @@ from ._vector import perifocal_vector, statevector
 from ._frame import perifocal_frame
 
 
+def _herarp(stv, u):
+    r, v = stv.r, stv.v
+    h = norm(cross(r, v))
+    r, v = nrom(r), norm(v)
+    e = sqrt(1 + (h**2/u**2)*(v**2-2*u/r))
+    rpe = (h**2/u)*(1/(1+e))
+    rpa = (h**2/u)*(1/(1-e))
+    return h, e, rpe, rap
+
+
 class KeplerOrbit(object):
     def __init__(self, ecc, sma, inc, lonasc, argpe, u, epoch):
         """
@@ -192,6 +202,7 @@ class KeplerOrbit(object):
     #    a = 1/self.semimajor_axis
     #    z = a*x**2
     #    return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x
+    scalar_herpra = staticmethod(_herpra)
 
 
 def parse_kepler(kepler_expr, u, epoch):
