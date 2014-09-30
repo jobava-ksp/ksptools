@@ -25,25 +25,28 @@ class CelestialBody(Body):
         if self.atmosphere is None:
             return 0, 0, zeros(3), zeros(3)
         else:
-            return self.atmposphere.atmstate_by_statevector(stv, t)
+            return self.atmosphere.atmstate_by_statevector(stv, t)
     
     def atmstate_by_alt(self, alt, t):
         if self.atmosphere is None:
             return 0, 0, zeros(3), zeros(3)
         else:
-            return self.atmposphere.atmstate_by_alt(stv, t)
+            return self.atmosphere.atmstate_by_alt(alt, t)
     
     def llav(self, stv, t):
         return self.surface.geodetic_llav(stv, t)
     
-    def surface_uniti(lat, lon, t):
+    def surface_uniti(self, lat, lon, t):
         return self.surface.uniti(lat, lon, t)
     
-    def surface_unitj(lat, lon, t):
+    def surface_unitj(self, lat, lon, t):
         return self.surface.unitj(lat, lon, t)
     
-    def surface_unitk(lat, lon, t):
+    def surface_unitk(self, lat, lon, t):
         return self.surface.unitk(lat, lon, t)
+    
+    def ijk_by_ll(self, lat, lon, t):
+        return self.surface_uniti(lat,lon,t), self.surface_unitj(lat,lon,t), self.surface_unitk(lat,lon,t)
 
 
 class System(object):

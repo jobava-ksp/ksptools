@@ -104,7 +104,7 @@ class Controller(object):
     def _do_state(self, r, v, m, body, t):
         cls = type(self)
         lat, lon, alt, v_air = body.llav(statevector(r,v), t)
-        si, sj, sk = body.ijk_by_lla(lat, lon, alt)
+        si, sj, sk = body.ijk_by_ll(lat, lon, t)
         p, atm = body.atmstate_by_alt(alt, t)
         return (m, r, v), (body, si, sj, sk, lat, lon, alt), (p, atm, v_air), t
     
@@ -127,7 +127,7 @@ class Controller(object):
         return accel, ff
     
     def _ode_func(self, body):
-        def func(self, y, t):
+        def func(y, t):
             r = y[0:3]
             v = y[3:6]
             m = y[6]
@@ -142,16 +142,69 @@ class Controller(object):
         rvm1 = odeint(odefunc, rvm0, [t, t+dt])[-1]
         return rvm1[0:3], rvm1[3:6], rvm1[6]
     
-    def sim(self, stv, m, t, dt, body, pred=None):
+    def sim(self, stv, m, t, dt, body):
         r, v = stv.r, stv.v
         func = self._ode_func(body)
-        if pred is None:
-            r, v, m = self._step(r, v, m, t, dt, func)
-            t += dt
-        else:
-            while pred(r, v, m, t):
-                r, v, m = self._step(r, v, m, t, dt, func)
-                t += dt
-        return statevector(r,v), m
+        r, v, m = self._step(r, v, m, t, dt, func)
+        t += dt
+        return statevector(r,v), m, t
+
+
+class StagedController(Controller):
+    def __init__(self):
+        Controller.__init__(self)
     
+    def _staged_update(self, stage_name, depleted, max_twr, state):
+        raise NotImplementedError
+    
+    def _initialize(self, payload, stages):
+        self._stage = ('payload', payload, 0, 0, 0, 0, None)
+        macc = payload
+        for i in range(len(stages)):
+            name, me, mf, Tmax, isp_0, isp_1 = stages[i]
+            self._stage = (name, me + macc, mf, Tmax, isp_0, isp_1, self._stage)
+            macc += me + mf
+    
+    def _finalize(self):
+        del self._stage
+    
+    def _update(self, m_rv, body_ijk_lla, pav, t):
+        stage_name, me, _, Tmax, isp_0, isp_1, next_stage = self._stage
+        f, coefd, Tdir, drop = self._staged_update(stage_name, (m<=me), Tmax / (m*spconst.g), (m_rv, body_ijk_lla, pav))
+        if stage_name == 'payload':
+            return None, coefd, Tdir
+        else:
+            return (Tmax, isp_0, isp_1, f), coefd, Tdir
+    
+    def sim(self, pl, stages, stv0, body, t, dt):
+        self._initialize(pl, stages)
+        tf = t + dt
+        while t < tf:
+            name, sme, smf, _, _, _, next = self._stage
+            if not name != 'payload':
+                stage_dt = self._time_to_burnstage(stv0, body, t)
+                stv0, m, _ = Controller.sim(self, stv0, sme+smf, t, min(stage_dt, tf - t), body)
+                if stage_dt > tf - t:
+                    t = tf
+                else:
+                    self._stage, t = next, t + stage_dt
+            else:
+                stv0, m, _ = Controller.sim(self, stv0, sme, t, tf - t, body)
+        self._finalize()
+        return stv0, m, (name, m - me, t)
+    
+    def _time_to_burnstage(self, stv0, body, t):
+        name, sme, smf, Tmax, isp_0, _, _ = self._stage
+        def func(dt):
+            _, m, t = Controller.sim(self, stv0, sme + smf, t, dt, body)
+            return m - sme
+        return newton(func, Tmax/(spconst.g*isp_0))
+    
+    @staticmethod
+    def stage(name, me, mp, Tmax, isp_0, isp_1):
+        return name, me, mp, Tmax, isp_0, isp_1
+    
+    @staticmethod
+    def stage_by_twr(name, Tmax, twre, twrp, isp_0, isp_1):
+        return name, Tmax/(spconst.g*twre), Tmax/(spconst.g*twrp), isp_0, isp_1
     

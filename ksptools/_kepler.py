@@ -10,7 +10,7 @@ from ._vector import perifocal_vector, statevector
 from ._frame import perifocal_frame
 
 
-def _herarp(stv, u):
+def _herpra(stv, u):
     r, v = stv.r, stv.v
     h = norm(cross(r, v))
     r, v = nrom(r), norm(v)

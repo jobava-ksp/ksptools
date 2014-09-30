@@ -8,42 +8,20 @@ from ksptools import *
 import numpy as np
 import numpy.linalg as la
 
-import scipy.constants as spconst
 
-
-
-
-
-class stagedcontroller(simcontroller):
+class LaunchController(StagedController):
     def __init__(self):
-        pass
+        StagedController.__init__(self)
     
     def _staged_update(self, stage_name, depleted, max_twr, state):
-        raise NotImplementedError
-    
-    def _initialize(self, payload, stages):
-        self._stage = stage('payload', payload, 0, 0, 0, 0, None)
-        self._state = None
-        macc = paylaod
-        for i in range(len(stages)):
-            name, me, mf, Tmax, isp_0, isp_1 = stages[i]
-            self._stage = (name, me + macc, mf, Tmax, isp_0, isp_1, self._stage)
-            macc += me + mf
-    
-    def _update(self, m_rv, body_ijk_lla, pav, t):
-        stage_name, me, _, Tmax, isp_0, isp_1, next_stage = self._stage
-        if m <= me:
-            _, coefd, Tdir, drop = self._staged_update(stage_name, True, Tmax / (m*spconst.g), (m_rv, body_ijk_lla, pav))
-            f = 0
-        else:
-            f, coefd, Tdir, drop = self._staged_update(stage_name, False, Tmax / (m*spconst.g), (m_rv, body_ijk_lla, pav))
-        if drop:
-            self._stage = next_stage
-        
-        return (Tmax, isp_0, isp_1, f), coefd, Tdir
-    
-    @staticmethod
-    def stage(name, me, mp, Tmax, isp_0, isp_1):
-        return name, me, mf, Tmax, isp_0, isp_1
+        m_rv, body_ijk_llav, pav, t = state
+        k = body_ijk_llav[3]
+        return 1, 0.2, k, depleted
 
+
+stage = StagedController.stage
+stages = [stage('A', 0.675e+3, 1.0e+3, 50e+5, 390, 300)]
+
+controller = LaunchController()
+print(controller.sim(0.94, stages, ksys['ksc'].statevector(0), ksys['kerbin'], 0, 3*60))
 

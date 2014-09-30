@@ -160,20 +160,21 @@ class RotatingEllipsoide(object):
         self.e = sqrt(2*self.f-self.f**2)
         self.Rp = Rp
         self.Re = Re
+        self._w = self.frame._w
     
     def surface_height(self, lat):
         return self.Re/sqrt(1-self.e**2*sin(lat)**2)
     
     def uniti(self, lat, lon, t):
-        u = array([-sin(st), cos(st), 0])
+        u = array([-sin(lon), cos(lon), 0])
         return dot(self.frame._A, u).A1
     
     def unitj(self, lat, lon, t):
-        u = array([-sin(lat)*cos(st), -sin(lat)*sin(st), cos(lat)])
+        u = array([-sin(lat)*cos(lon), -sin(lat)*sin(lon), cos(lat)])
         return dot(self.frame._A, u).A1
     
     def unitk(self, lat, lon, t):
-        u = array([cos(lat)*cos(st), cos(lat)*sin(st), sin(lat)])
+        u = array([cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat)])
         return dot(self.frame._A, u).A1
     
     def surface_inertial_statevector(self, lat, lon, altitude, t):
@@ -184,7 +185,7 @@ class RotatingEllipsoide(object):
     
     def geodetic_llav(self, stv, t):
         lat, alt = geodetic_latitude(stv.r, self.Re, self.e)
-        if stv[1] > 0:
+        if stv.r[1] > 0:
             lon = arccos(stv.r[0]/norm(stv.r)) - ((t*self._w) % (2*pi))
         else:
             lon = 2*pi - arccos(stv.r[0]/norm(stv.r)) - ((t*self._w) % (2*pi))
