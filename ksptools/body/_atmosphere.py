@@ -16,18 +16,18 @@ class Atmosphere(Field):
         self.surface = parent_node.surface
     
     def atmstate_by_statevector(self, stv, t):
-        _, _, alt, _ = self.surface.geodetic_llav(stv, t)
+        lat, lon, alt, _ = self.surface.geodetic_llav(stv, t)
         if alt < self.height:
-            return self.atmstate_by_alt(alt)
+            return self.atmstate_by_lla(lat, lon, alt, t)
         else:
-            return 0, 0, np.zeros(3), np.zeros(3)
+            return 0, 0, np.zeros(3)
     
-    def atmstate_by_alt(self, alt, t):
+    def atmstate_by_lla(self, lat, lon, alt, t):
         if alt < self.height:
             p = self.p_sl * pow(np.e, -alt/self.scale_height)
             a = self.atm_sl * pow(np.e, -alt/self.scale_height)
-            va = self.surface.surface_inertial_statevector(lat, lon, alt, t)
-            return p, a, v
+            va = self.surface.surface_inertial_statevector(lat, lon, alt, t).v
+            return p, a, va
         else:
             return 0, 0, np.zeros(3)
     

@@ -66,5 +66,5 @@ def geodetic_latitude(r, Re, e):
         g = 2*(z(lat,h) - r[1])*gz(lat, h)
         return g
         
-    return minimize(func, [arccos(r[0]/norm(r)), norm(r) - Re], jac=gfunc, method='BFGS').x
+    return minimize(func, array([arccos(r[0]/norm(r)), norm(r) - Re]), jac=gfunc, method='BFGS').x
 

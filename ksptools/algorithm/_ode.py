@@ -1,9 +1,10 @@
 from .._vector import statevector
 from .._math import unit
 
-from numpy import array, concatenate, dot, zeros
+from numpy import array, arange, concatenate, dot, zeros
 from numpy.linalg import norm
 from scipy.integrate import odeint
+from scipy.optimize import brentq
 
 import scipy.constants as spconst
 
@@ -77,21 +78,22 @@ class Controller(object):
     @classmethod
     def _accel_g(cls, r, body):
         return -(unit(r))*(body.GM/dot(r,r))
+        #return zeros(3)
     
     @classmethod
-    def _accel_thrust(cls, Tdird, T, m):
-        return Tdir*T/m
+    def _accel_thrust(cls, Tdir, T, m):
+        return (Tdir*T)/m
     
     @classmethod
     def _accel_drag(cls, p, v_air, coefd):
-        return -0.5*unit(v_air)*dot(v_air, v_air)*p*coefd*0.008
+        return -0.5*unit(v_air)*p*dot(v_air, v_air)*coefd*0.008
+        #return zeros(3)
     
     @classmethod
     def _thrust_state(cls, a, engine_state):
-        if engin_state is not None:
+        if engine_state is not None:
             Tmax, isp_0, isp_1, throttle = engine_state
             isp = isp_0 + min(1, max(0, a))*(isp_1 - isp_0)
-            Tmax = isp_0 * ff * spconst.g
             T = Tmax * throttle
             ff = T/(isp * spconst.g)
             return T, ff
@@ -103,27 +105,27 @@ class Controller(object):
     
     def _do_state(self, r, v, m, body, t):
         cls = type(self)
-        lat, lon, alt, v_air = body.llav(statevector(r,v), t)
+        lat, lon, alt, v_surf = body.llav(statevector(r,v), t)
         si, sj, sk = body.ijk_by_ll(lat, lon, t)
-        p, atm = body.atmstate_by_alt(alt, t)
-        return (m, r, v), (body, si, sj, sk, lat, lon, alt), (p, atm, v_air), t
+        p, atm, v_air = body.atmstate_by_lla(lat, lon, alt, t)
+        return (m, r, v), (body, si, sj, sk, lat, lon, alt, v_surf), (p, atm, v-v_air), t
     
-    def _do_control(self, m_rv, body_ijk_lla, pav, t):
-        return self._update(m_rv, body_ijk_lla, pav, t)
+    def _do_control(self, m_rv, body_ijk_llav, pav, t):
+        return self._update(m_rv, body_ijk_llav, pav, t)
     
     def _accel_dm(self, state, control):
         cls = type(self)
         ## state ##
         m_rv, body_ijk_llav, pav, t = state
         m, r, v = m_rv
-        body, _, _, _, _, _, alt = body_ijk_lla
+        body, _, _, _, _, _, alt, _ = body_ijk_llav
         p, a, v_air = pav
         
         ## control ##
         engine_state, coefd, Tdir = control
         T, ff = cls._thrust_state(a, engine_state)
         
-        accel = cls._accel_g(r,body) + cls._accel_thrust(Tdir, T, m) + cls._accel_drag(p, v-v_air, coefd)
+        accel = cls._accel_g(r, body) + cls._accel_thrust(Tdir, T, m) + cls._accel_drag(p, v_air, coefd)
         return accel, ff
     
     def _ode_func(self, body):
@@ -134,12 +136,12 @@ class Controller(object):
             state = self._do_state(r,v,m,body,t)
             control = self._do_control(*state)
             a, dm = self._accel_dm(state, control)
-            return concatenate((v,a,[dm]))
+            return concatenate((v,a,[-dm]))
         return func
     
     def _step(self, r, v, m, t, dt, odefunc):
         rvm0 = concatenate((r,v,[m]))
-        rvm1 = odeint(odefunc, rvm0, [t, t+dt])[-1]
+        rvm1 = odeint(odefunc, rvm0, list(arange(t, t+dt, 1)) + [t+dt])[-1]
         return rvm1[0:3], rvm1[3:6], rvm1[6]
     
     def sim(self, stv, m, t, dt, body):
@@ -168,9 +170,10 @@ class StagedController(Controller):
     def _finalize(self):
         del self._stage
     
-    def _update(self, m_rv, body_ijk_lla, pav, t):
+    def _update(self, m_rv, body_ijk_llav, pav, t):
         stage_name, me, _, Tmax, isp_0, isp_1, next_stage = self._stage
-        f, coefd, Tdir, drop = self._staged_update(stage_name, (m<=me), Tmax / (m*spconst.g), (m_rv, body_ijk_lla, pav))
+        m, _, _ = m_rv
+        f, coefd, Tdir, drop = self._staged_update(stage_name, (m<=me), Tmax / (m*spconst.g), (m_rv, body_ijk_llav, pav, t))
         if stage_name == 'payload':
             return None, coefd, Tdir
         else:
@@ -180,25 +183,35 @@ class StagedController(Controller):
         self._initialize(pl, stages)
         tf = t + dt
         while t < tf:
-            name, sme, smf, _, _, _, next = self._stage
-            if not name != 'payload':
+            name, sme, smp, _, _, _, next = self._stage
+            if not name == 'payload':
                 stage_dt = self._time_to_burnstage(stv0, body, t)
-                stv0, m, _ = Controller.sim(self, stv0, sme+smf, t, min(stage_dt, tf - t), body)
-                if stage_dt > tf - t:
+                print('burning {} for {} seconds'.format(name, stage_dt))
+                stv0, m, _ = Controller.sim(self, stv0, sme+smp, t, min(stage_dt, tf - t), body)
+                print('done')
+                if stage_dt > (tf - t):
                     t = tf
+                    break
                 else:
                     self._stage, t = next, t + stage_dt
-            else:
+            else: 
                 stv0, m, _ = Controller.sim(self, stv0, sme, t, tf - t, body)
+                break
         self._finalize()
-        return stv0, m, (name, m - me, t)
+        return stv0, m, (name, m - sme, t)
     
     def _time_to_burnstage(self, stv0, body, t):
-        name, sme, smf, Tmax, isp_0, _, _ = self._stage
+        name, sme, smp, Tmax, isp_0, isp_1, _ = self._stage
+        print(self._stage)
         def func(dt):
-            _, m, t = Controller.sim(self, stv0, sme + smf, t, dt, body)
+            _, m, _ = Controller.sim(self, stv0, sme + smp, t, dt, body)
+            print('{}: {} - {} = {}'.format(dt, m, sme, m-sme))
             return m - sme
-        return newton(func, Tmax/(spconst.g*isp_0))
+        c = smp*spconst.g/Tmax
+        return brentq(func, c*min(isp_0-5, isp_1-5), c*max(isp_0+5, isp_1+5))
+        #_,a,_ = body.atmstate_by_statevector(stv0, t)
+        #isp = isp_0 + min(1, a)*(isp_1 - isp_0)
+        #return smp/(Tmax/(spconst.g*isp))
     
     @staticmethod
     def stage(name, me, mp, Tmax, isp_0, isp_1):

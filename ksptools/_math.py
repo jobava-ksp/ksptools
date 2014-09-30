@@ -1,5 +1,5 @@
 import re
-from numpy import array, cos, cosh, mat, pi, sin, sinh, sqrt
+from numpy import array, cos, cosh, mat, pi, sin, sinh, sqrt, zeros
 from numpy.linalg import norm
 
 
@@ -10,30 +10,32 @@ unitk = array([0,0,1])
 
 def rotx(t):
     return mat([[1,       0,      0],
-                 [0,  cos(t), sin(t)],
-                 [0, -sin(t), cos(t)]])
+                [0,  cos(t), sin(t)],
+                [0, -sin(t), cos(t)]])
 
 def roty(t):
     return mat([[cos(t), 0, -sin(t)],
-                 [     0, 1,       0],
-                 [sin(t), 0,  cos(t)]])
+                [     0, 1,       0],
+                [sin(t), 0,  cos(t)]])
 
 def rotz(t):
     return mat([[ cos(t), sin(t), 0],
-                 [-sin(t), cos(t), 0],
-                 [      0,      0, 1]])
+                [-sin(t), cos(t), 0],
+                [      0,      0, 1]])
  
 def rotaxis(axis,t):
     x,y,z = axis
     ct, st = cos(t), sin(t)
     return mat([[ct+x*x*(1-ct),   x*y*(1-ct)-z*st, x*z*(1-ct)+y*st],
-                 [y*x*(1-ct)+z*st, ct+y*y*(1-ct),   y*z*(1-ct)-x*st],
-                 [z*x*(1-ct)-y*st, z*y*(1-ct)+x*st, ct+z*z*(1-ct)  ]])
+                [y*x*(1-ct)+z*st, ct+y*y*(1-ct),   y*z*(1-ct)-x*st],
+                [z*x*(1-ct)-y*st, z*y*(1-ct)+x*st, ct+z*z*(1-ct)  ]])
 
 def rotzxz(a,b,c):
     return rotz(c)*rotx(b)*rotz(a)
 
 def unit(v):
+    if norm(v) == 0:
+        return zeros(3)
     return v/norm(v)
 
 def C(z):

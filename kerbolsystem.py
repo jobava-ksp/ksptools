@@ -30,7 +30,7 @@ def make_system():
             '<1.01325e+2, 1.0, 5.0e+3m, 6.9077553e+4m, -40.19C, 20.0C, True>')
             
     ksc = ks.site(
-            'ksc', 'KSC', 'kerbin', '<-1.78896248e-3deg, 1.301584147deg, 68.41m>')
+            'ksc', 'KSC', 'kerbin', '<-1.78896248e-3rad, 1.301584147rad, 68.41m>')
             
     mun = ks.cbody(
             'mun', 'Mun', 'kerbin', 6.5138398e+10, 2.4295591e+6,

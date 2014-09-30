@@ -97,7 +97,7 @@ class ConstantRotationFrame(Frame):
         self._w = w
     
     def _tolocal_A(self, t):
-        return dot(rotz(-t*self._w), self._A)
+        return dot(rotz(t*self._w), self._A)
     
     def toinertial(self, stv, t):
         A = self._tolocal_A(t).I
@@ -179,25 +179,24 @@ class RotatingEllipsoide(object):
     
     def surface_inertial_statevector(self, lat, lon, altitude, t):
         rlat = self.surface_height(lat)
-        r0 = array([rlat*cos(lat), 0, rlat*(1-self.f)**2*sin(lat)]) + altitude*self.unitk(lat, 0, 0)
+        r0 = rlat * array([cos(lat), 0, (1-self.f)**2*sin(lat)]) + altitude*self.unitk(lat, 0, 0)
         v0 = zeros(3)
-        return self.frame.toinertial(statevector(r0,v0), t)
+        return self.frame.toinertial(rotz(lon) * statevector(r0, v0), t)
     
     def geodetic_llav(self, stv, t):
+        stv = self.frame.tolocal(stv, t)
         lat, alt = geodetic_latitude(stv.r, self.Re, self.e)
         if stv.r[1] > 0:
-            lon = arccos(stv.r[0]/norm(stv.r)) - ((t*self._w) % (2*pi))
+            lon = arccos(stv.r[0]/norm(stv.r[0:2]))
         else:
-            lon = 2*pi - arccos(stv.r[0]/norm(stv.r)) - ((t*self._w) % (2*pi))
-        while lon < 0:
-            lon += 2*pi
-        A = mat([self.uniti(lat, lon, t), self.unitj(lat, lon, t), self.unitk(lat, lon, t)])
-        v = dot(A,stv.v).A1
-        return lat, lon, alt, v
+            lon = 2*pi - arccos(stv.r[0]/norm(stv.r[0:2]))
+        i, j, k = self.uniti(lat, lon, 0), self.unitj(lat, lon, 0), self.unitk(lat, lon, 0)
+        A = mat([i, j, k])
+        return lat, lon, alt, dot(A, stv.v).A1
     
-    def altitude(self, stv):
-        _, alt = geodetic_latitude(stv.r, self.Re, self.e)
-        return alt
+    #def altitude(self, stv):
+    #    _, alt = geodetic_latitude(stv.r, self.Re, self.e)
+    #    return alt
 
 
 class SurfaceFrame(Frame):

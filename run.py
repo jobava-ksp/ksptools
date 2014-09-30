@@ -20,8 +20,18 @@ class LaunchController(StagedController):
 
 
 stage = StagedController.stage
-stages = [stage('A', 0.675e+3, 1.0e+3, 50e+5, 390, 300)]
+stages = [stage('A', 0.675e+3, 1.0e+3, 50e+3, 390, 300)]
 
 controller = LaunchController()
-print(controller.sim(0.94, stages, ksys['ksc'].statevector(0), ksys['kerbin'], 0, 3*60))
+
+stv0 = ksys['ksc'].statevector(0)
+print(vars(ksys['ksc'].frame))
+print(ksys['kerbin'].llav(stv0, 0))
+print(str(stv0))
+p, a, v = ksys['kerbin'].atmstate_by_statevector(stv0, 0)
+print(str(statevector(stv0.r, v)))
+
+#print(vars(ksys['ksc'].frame))
+#print(ksys['kerbin'].llav(stv0, 0))
+print(map(str, controller.sim(0.94e+3, stages, stv0, ksys['kerbin'], 0, 60)))
 

@@ -27,11 +27,11 @@ class CelestialBody(Body):
         else:
             return self.atmosphere.atmstate_by_statevector(stv, t)
     
-    def atmstate_by_alt(self, alt, t):
+    def atmstate_by_lla(self, lat, lon, alt, t):
         if self.atmosphere is None:
             return 0, 0, zeros(3), zeros(3)
         else:
-            return self.atmosphere.atmstate_by_alt(alt, t)
+            return self.atmosphere.atmstate_by_lla(lat, lon, alt, t)
     
     def llav(self, stv, t):
         return self.surface.geodetic_llav(stv, t)

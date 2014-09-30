@@ -8,5 +8,5 @@ class StaticSite(FramedNode):
         FramedNode.__init__(self, parent_node, surface_frame(parent_node.surface, lat, lon, alt))
     
     def statevector(self, t):
-        return self.toinertial(statevector.zero(), t)
+        return self.frame.toinertial(statevector.zero(), t)
 
