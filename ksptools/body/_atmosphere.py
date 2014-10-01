@@ -24,8 +24,9 @@ class Atmosphere(Field):
     
     def atmstate_by_lla(self, lat, lon, alt, t):
         if alt < self.height:
-            p = self.p_sl * pow(np.e, -alt/self.scale_height)
             a = self.atm_sl * pow(np.e, -alt/self.scale_height)
+            #p = self.atm_sl * pow(np.e, -alt/self.scale_height)
+            p = a * 1.223094855487
             va = self.surface.surface_inertial_statevector(lat, lon, alt, t).v
             return p, a, va
         else:

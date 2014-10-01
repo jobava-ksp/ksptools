@@ -11,12 +11,12 @@ from ._frame import perifocal_frame
 
 
 def _herpra(stv, u):
-    r, v = stv.r, stv.v
+    r, v = stv.rv
     h = norm(cross(r, v))
-    r, v = nrom(r), norm(v)
+    r, v = norm(r), norm(v)
     e = sqrt(1 + (h**2/u**2)*(v**2-2*u/r))
     rpe = (h**2/u)*(1/(1+e))
-    rpa = (h**2/u)*(1/(1-e))
+    rap = (h**2/u)*(1/(1-e))
     return h, e, rpe, rap
 
 

@@ -1,6 +1,6 @@
 from __future__ import division
 
-from numpy import array, arccos, cos, sin, sqrt
+from numpy import array, arccos, arcsin, cos, sin, sqrt
 from numpy.linalg import norm
 from scipy.optimize import minimize
 
@@ -66,5 +66,5 @@ def geodetic_latitude(r, Re, e):
         g = 2*(z(lat,h) - r[1])*gz(lat, h)
         return g
         
-    return minimize(func, array([arccos(r[0]/norm(r)), norm(r) - Re]), jac=gfunc, method='BFGS').x
+    return minimize(func, array([arcsin(r[1]/norm(r)), norm(r) - Re]), jac=gfunc, method='BFGS').x
 

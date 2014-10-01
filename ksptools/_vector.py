@@ -37,6 +37,9 @@ class RVVector(object):
     def _set_v(self, v):
         self._vector[1] = v
     
+    def _get_rv(self):
+        return tuple(self._vector)
+    
     @classmethod
     def _dims(cls):
         raise NotImplementedError
@@ -52,6 +55,7 @@ class RVVector(object):
     
     r = property(_get_r, _set_r)
     v = property(_get_v, _set_v)
+    rv = property(_get_rv)
 
 
 class StateVector(RVVector):

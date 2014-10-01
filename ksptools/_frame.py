@@ -1,6 +1,6 @@
 from __future__ import division
 
-from numpy import array, arccos, cos, cross, dot, mat, pi, sin, sqrt, zeros
+from numpy import array, arccos, arcsin, cos, cross, dot, mat, pi, sin, sqrt, zeros
 from numpy.linalg import norm
 from ._math import rotz, rotzxz, asunits, uniti, unitk, unitj
 from ._vector import statevector
@@ -100,13 +100,13 @@ class ConstantRotationFrame(Frame):
         return dot(rotz(t*self._w), self._A)
     
     def toinertial(self, stv, t):
-        A = self._tolocal_A(t).I
+        A = self._tolocal_A(t)
         r = dot(A, stv.r).A1
         v = dot(A, stv.v + cross(unitk*self._w, stv.r)).A1
         return statevector(r, v)
     
     def tolocal(self, stv, t):
-        A = self._tolocal_A(t)
+        A = self._tolocal_A(t).I
         r = dot(A, stv.r).A1
         v = dot(A, stv.v).A1 - cross(unitk*self._w, r)
         return statevector(r, v)
@@ -166,15 +166,18 @@ class RotatingEllipsoide(object):
         return self.Re/sqrt(1-self.e**2*sin(lat)**2)
     
     def uniti(self, lat, lon, t):
-        u = array([-sin(lon), cos(lon), 0])
+        st = t * self._w + lon
+        u = array([-sin(st), cos(st), 0])
         return dot(self.frame._A, u).A1
     
     def unitj(self, lat, lon, t):
-        u = array([-sin(lat)*cos(lon), -sin(lat)*sin(lon), cos(lat)])
+        st = t * self._w + lon
+        u = array([-sin(lat)*cos(st), -sin(lat)*sin(st), cos(lat)])
         return dot(self.frame._A, u).A1
     
     def unitk(self, lat, lon, t):
-        u = array([cos(lat)*cos(lon), cos(lat)*sin(lon), sin(lat)])
+        st = t * self._w + lon
+        u = array([cos(lat)*cos(st), cos(lat)*sin(st), sin(lat)])
         return dot(self.frame._A, u).A1
     
     def surface_inertial_statevector(self, lat, lon, altitude, t):
@@ -184,15 +187,17 @@ class RotatingEllipsoide(object):
         return self.frame.toinertial(rotz(lon) * statevector(r0, v0), t)
     
     def geodetic_llav(self, stv, t):
-        stv = self.frame.tolocal(stv, t)
         lat, alt = geodetic_latitude(stv.r, self.Re, self.e)
-        if stv.r[1] > 0:
-            lon = arccos(stv.r[0]/norm(stv.r[0:2]))
+        r, v = self.frame.tolocal(stv, t).rv
+        d = norm(r[0:2])
+        x, y, _ = r/d
+        if y >= 0:
+            lon = arccos(x)
         else:
-            lon = 2*pi - arccos(stv.r[0]/norm(stv.r[0:2]))
+            lon = (2*pi - arccos(x)) % (2*pi)
         i, j, k = self.uniti(lat, lon, 0), self.unitj(lat, lon, 0), self.unitk(lat, lon, 0)
         A = mat([i, j, k])
-        return lat, lon, alt, dot(A, stv.v).A1
+        return lat, lon, alt, dot(A, v).A1
     
     #def altitude(self, stv):
     #    _, alt = geodetic_latitude(stv.r, self.Re, self.e)

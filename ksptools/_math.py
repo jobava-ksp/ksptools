@@ -9,19 +9,19 @@ unitk = array([0,0,1])
 
 
 def rotx(t):
-    return mat([[1,       0,      0],
-                [0,  cos(t), sin(t)],
-                [0, -sin(t), cos(t)]])
+    return mat([[1,      0,      0],
+                [0, cos(t), -sin(t)],
+                [0, sin(t),  cos(t)]])
 
 def roty(t):
-    return mat([[cos(t), 0, -sin(t)],
-                [     0, 1,       0],
-                [sin(t), 0,  cos(t)]])
+    return mat([[ cos(t), 0, sin(t)],
+                [      0, 1,       0],
+                [-sin(t), 0, cos(t)]])
 
 def rotz(t):
-    return mat([[ cos(t), sin(t), 0],
-                [-sin(t), cos(t), 0],
-                [      0,      0, 1]])
+    return mat([[ cos(t), -sin(t), 0],
+                [ sin(t),  cos(t), 0],
+                [      0,       0, 1]])
  
 def rotaxis(axis,t):
     x,y,z = axis
