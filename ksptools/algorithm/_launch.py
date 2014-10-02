@@ -35,7 +35,7 @@ class LaunchPhaseController(StagedController):
         
         return f, 0.2, dot(IJK, self.tgt_dir).A1, is_depleted
     
-    def solve(self, stages, stv0, body, t0, est_dt, solve):
+    def _solve(self, stages, stv0, body, t0, est_dt, objfunc):
         def func(dt):
             stv1, _, _ = self.sim(pl, stages, stv0, body, t0, dt)
             ## get altitude ##
