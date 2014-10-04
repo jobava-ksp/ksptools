@@ -2,7 +2,7 @@ from numpy import log
 from scipy.constants import g as g0
 
 
-def stage_from_params(name, ms, isp_0=0, isp_1=0, Tmax=0, Twr_0=0, Twr_1=0):
+def _stage_from_params(name, ms, isp_0=0, isp_1=0, Tmax=0, Twr_0=0, Twr_1=0):
     if Twr_0 == 0:
         return Stage(name, ms)
     else:
@@ -20,7 +20,7 @@ class Stage(object):
         self.isp_0 = isp_0atm
         self.isp_1 = isp_1atm
         self.coefd_e = coefd_e
-        self.coefd_p = coefd_p
+        self.coefd_ep = coefd_ep
         self.next = next
     
     def statevars(self):
@@ -38,24 +38,24 @@ class Stage(object):
             self.m1 = self.me
             self.m0 = self.me + self.mp
     
-    def stage_deltav(self):
+    def deltav(self):
         return self.isp_0 * g0 * log(self.m0 / self.m1)
     
     def total_deltav(self):
         return self.isp_0 * g0 * log(self.m0 / self.m1)
     
     next = property(_get_next, _set_next)
-    from_parameters = staticmethod(stage_from_params)
+    from_parameters = staticmethod(_stage_from_params)
     
-    def ceofd(self, delta_m):
-        return self.ceofd_ep + delta_m*(self.ceofd_e - self.coefd_ep)/self.mp
+    def coefd(self, delta_m):
+        if self.mp == 0:
+            return self.coefd_ep
+        else:
+            return self.coefd_ep + delta_m*(self.coefd_e - self.coefd_ep)/self.mp
     
     def partial_deplete(self, mc):
         dm = self.m0 - mc
-        return Stage(self.name, self.me, self.mp - dm, self.Tmax, self.isp_0, self.isp_1, self.ceofd_e, self.coefd(dm), self.next)
+        return Stage(self.name, self.me, self.mp - dm, self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd(dm), self.next)
 
-
-class PartialStage(object):
-    def __init__(self, me, lfunc
 
 

@@ -1,52 +1,76 @@
-from numpy import dot, mat, pi
+from numpy import arcsin, array, cos, dot, mat, pi, sin
 from numpy.linalg import norm
-from scipy.optimize import newton
+from scipy.constants import g as g0
 
 from .._math import unit
 from .._kepler import KeplerOrbit as kepler
 from ._ode import StagedController
 
 
-def target_rAp_func(target_rAp):
-    def func(alt, rAp, tAp):
-        return target_rAp - rAp
-
-def target_alt_func(target_alt):
-    def func(alt, rAp, tAp):
-        return target_alt - alt
-
-
-class LaunchPhaseController(StagedController):
-    def __init__(self, tgt_dir, tgt_twr=None):
-        StagedController.__init__(self)
-        self.tgt_dir = tgt_dir
-        self.tgt_twr = tgt_twr
+class _Phase(object):
+    def __init__(self, fa=None, twr=None):
+        self.fa = fa
+        self.twr = twr
     
-    def _staged_update(self, stage_name, is_depleted, maxtwr, state):
-        m_rv, body_ijk_llav, pav, t = state
-        body, i, j, k, _, _, v_surf = body_ijk_llav
-        
+    def objfunc(self, body, state):
+        raise NotImplementedError
+
+
+class _AltPhase(_Phase):
+    def __init__(self, alt, fa=pi/2, twr=None):
+        _Phase.__init__(self, fa, twr)
+        self.tgt_alt = alt
+    
+    def objfunc(self, body, state):
+        rmv, ijkllav, pav, t = state
+        return (self.tgt_alt - ijkllav[5])**2
+
+
+class _LaunchController(StagedController):
+    def __init__(self):
+        StagedController.__init__(self)
+    
+    def _staged_update(self, stage, depleted, maxtwr, state):
+        mrv, ijkllav, pav, t = state
+        m,r,_ = mrv
+        i,j,k,_,_,_,_ = ijkllav
+        _,_,_ = pav
         IJK = mat([i,j,k])
         
-        if self.tgt_twr is not None and maxtwr > 0:
-            f = min(1, self.tgt_twr/maxtwr)
+        ## get phase info... (fa, twr, body)
+        fa, twr, body = self.tgt_fa, self.tgt_twr, self.body
+        
+        
+        ## adjust twr ##
+        if twr is not None:
+            twr = min(1, twr)
         else:
-            f = 1
+            twr = maxtwr
         
-        return f, 0.2, dot(IJK, self.tgt_dir).A1, is_depleted
+        ## adjust fa such that Fg <= Tz
+        if twr > 0:
+            fa = max(0, max(arcsin(1/twr), fa))
+        
+        ## adjust throttle ##
+        if twr > 0:
+            f = min(1, twr/maxtwr)
+        else:
+            f = 0
+        return f, dot(IJK.I, array([cos(fa), 0, sin(fa)])).A1, (depleted and twr > 0)
     
-    def _solve(self, stages, stv0, body, t0, est_dt, objfunc):
-        def func(dt):
-            stv1, _, _ = self.sim(pl, stages, stv0, body, t0, dt)
-            ## get altitude ##
-            _, _, alt, _ = body.llav(stv1, t0+dt)
-            ## get Ap ##
-            kep = kepler.from_statevector(stv1, body.GM, t0+dt)
-            rAp = norm(kep.statevector_by_ta(pi)
-            tAp = kep.time_by_ta(pi, t0+dt)
-            return objfunc(alt, rAp, tAp)
-        
-        dt = newton(func, est_dt)
-        res = self.sim(pl, stages, stv0, body, t0, dt)
-        return dt, res
+    def dophase(self, phase, stage0, t0, stv0, body, **kwargs):
+        objfunc = phase.objfunc
+        self.tgt_fa = phase.fa
+        self.tgt_twr = phase.twr
+        self.body = body
+        return self.sim_to_objective(stage0, stv0, t0, body, objfunc, **kwargs)
+
+def altphase(alt):
+    return _AltPhase(alt)
+
+def launch(phases, stage, t0, stv0, body):
+    controller = _LaunchController()
+    for phase in phases:
+        stv0, stage, t0 = controller.dophase(phase, stage, stv0, t0, body)
+    return stage, t0, stv0
 

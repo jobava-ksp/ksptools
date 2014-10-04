@@ -189,7 +189,7 @@ class RotatingEllipsoide(object):
     def geodetic_llav(self, stv, t):
         lat, alt = geodetic_latitude(stv.r, self.Re, self.e)
         r, v = self.frame.tolocal(stv, t).rv
-        d = norm(r[0:2])
+        d = norm(stv.r[0:2])
         x, y, _ = r/d
         if y >= 0:
             lon = arccos(x)

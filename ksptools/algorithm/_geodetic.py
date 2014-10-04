@@ -1,8 +1,9 @@
 from __future__ import division
 
-from numpy import array, arccos, arcsin, cos, sin, sqrt
+from numpy import array, arange, arccos, arcsin, cos, sin, sqrt, pi
 from numpy.linalg import norm
 from scipy.optimize import minimize
+from scipy.interpolate import interp1d, interp2d
 
 
 def _Rlat(Re, lat, e):
@@ -47,7 +48,6 @@ def geodetic_latitude(r, Re, e):
     :rtype: float
     """
     r = array([norm(r[0:2]), r[2]])
-
     def z(lat, h):
         return (_Rlat(Re, lat, e)*(1-e**2) + h)*sin(lat)
     
@@ -67,4 +67,5 @@ def geodetic_latitude(r, Re, e):
         return g
         
     return minimize(func, array([arcsin(r[1]/norm(r)), norm(r) - Re]), jac=gfunc, method='BFGS').x
-
+        
+    
