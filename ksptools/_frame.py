@@ -68,10 +68,10 @@ class FunctionalDisplacementFrame(InertialFrame):
 
 
 class ConstantOrientationFrame(Frame):
-    def __init__(self, A):
+    def __init__(self, R):
         Frame.__init__(self)
-        self._A = A
-        self._AI = A.I
+        self._A = R.I
+        self._AI = R
     
     def toinertial(self, stv, t):
         return statevector(dot(self._AI, stv.r).A1, dot(self._AI, stv.v).A1)
@@ -123,12 +123,12 @@ class ConstantRotationFrame(Frame):
 
 class GeocentricFrame(ConstantOrientationFrame):
     def __init__(self, inc, lonasc, argve):
-        ConstantOrientationFrame.__init__(self, rotzxz(lonasc, inc, argve))
+        ConstantOrientationFrame.__init__(self, rotzxz(argve, inc, lonasc))
 
 
 class GeocentricRotatingFrame(ConstantRotationFrame):
     def __init__(self, inc, lonasc, argve, sidereal_rate):
-        ConstantRotationFrame.__init__(self, rotzxz(inc, lonasc, argve), sidereal_rate)
+        ConstantRotationFrame.__init__(self, rotzxz(argve, inc, lonasc), sidereal_rate)
 
 
 class PerifocalFrame(GeocentricFrame):

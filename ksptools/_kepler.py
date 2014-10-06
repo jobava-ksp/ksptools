@@ -20,6 +20,10 @@ def _herpra(stv, u):
     return h, e, rpe, rap
 
 
+def _synodic(kep1, kep2):
+    return (kep1.period * kep2.period)/abs(kep1.period - kep2.period)
+
+
 class KeplerOrbit(object):
     def __init__(self, ecc, sma, inc, lonasc, argpe, u, epoch):
         """
@@ -38,10 +42,10 @@ class KeplerOrbit(object):
         self.semilatus_rectum = p
         self.specific_angular_momentum = h
         self.GM = u
-        self.rpe = array([1,0,0]) * p/(1+ecc)
-        self.rap = array([-1,0,0]) * p/(1-ecc)
-        self.vpe = array([0,ecc + 1,0]) * (u/h)
-        self.vap = array([0,ecc - 1,0]) * (u/h)
+        self.rpe = p/(1+ecc)
+        self.rap = p/(1-ecc)
+        self.vpe = (ecc + 1) * (u/h)
+        self.vap = (ecc - 1) * (u/h)
         self.frame = perifocal_frame(inc, lonasc, argpe)
         self.normal = self.frame.unitk(0)
         self.epoch = epoch
@@ -94,9 +98,11 @@ class KeplerOrbit(object):
             argpe = 2*pi - arccos(dot(n,e)/(ecc*norm(n)))
 
         if vrad[0] >= 0:
-            ta = arccos(dot(e,stv.r)/(ecc*rad))
+            _arg = dot(e,stv.r)/(ecc*rad)
+            ta = arccos(min(1,max(-1,_arg)))
         else:
-            ta = 2*pi - arccos(dot(e,stv.r)/(ecc*rad))
+            _arg = dot(e,stv.r)/(ecc*rad)
+            ta = 2*pi - arccos(min(1,max(-1,_arg)))
         
         slr = dot(h,h)/u
         sma = slr/(1-ecc**2)
@@ -128,18 +134,22 @@ class KeplerOrbit(object):
     
     def perifocal_by_ta(self, ta):
         e, p, h, u = self.eccentricity, self.semilatus_rectum, self.specific_angular_momentum, self.GM
-        ru = array([cos(ta), sin(ta)])
-        vu = array([-sin(ta), e + cos(ta)])
-        return perifocal_vector((p/(1+e*cos(ta)))*ru, (u/h)*vu)
+        rad = (p/(1+e*cos(ta)))
+        r = array([1, 0])*rad
+        R = array([[cos(ta), -sin(ta)],[sin(ta), cos(ta)]])
+        v = array([(u/h)*e*sin(ta), h/rad])
+        return perifocal_vector(dot(R,r), dot(R,v))
     
     def perifocal_by_time(self, time):
         return self.perifocal_by_ta(self.true_anomaly_by_time(time))
     
     def statevector_by_ta(self, ta):
-        return self.frame.tostatevector(self.perifocal_by_ta(ta))
+        stv = self.frame.tostatevector(self.perifocal_by_ta(ta))
+        return self.frame.toinertial(stv, time)
     
     def statevector_by_time(self, time):
-        return self.frame.tostatevector(self.perifocal_by_time(time))
+        stv = self.frame.tostatevector(self.perifocal_by_time(time))
+        return self.frame.toinertial(stv, time)
     
     def true_anomaly_by_time(self, time):
         X = self._universal_anomaly(time)
@@ -149,6 +159,8 @@ class KeplerOrbit(object):
         elif e < 1:
             E = X/sqrt(self.semimajor_axis)
             ta = arccos((e - cos(E))/(e*cos(E)-1))
+            if E > pi:
+                ta = 2*pi - ta
         elif e > 1:
             F = X/sqrt(-self.semimajor_axis)
             ta = 2*arctan(sqrt((e+1)/(e-1))*tanh(F/2))
@@ -172,19 +184,37 @@ class KeplerOrbit(object):
         return offset + (n+1)*self.period
     
     def _universal_anomaly(self, time):
-        delt = time - self.epoch
-        r0, vr0, u = self.rpe[0], self.vpe[1], self.GM
+        if not self.period == float('inf'):
+            delt = (time - self.epoch)%(self.period)
+        else:
+            delt = time - self.epoch
+        r0, vr0, u = self.rpe, 0, self.GM
         a = 1/self.semimajor_axis
-        
         def func(x):
             z = a*x**2
-            return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x - sqrt(u)*delt
+            return (1-a*r0)*x**3*S(z) + r0*x - sqrt(u)*delt
         
         def gfunc(x):
             z = a*x**2
-            return (r0*vr0/sqrt(u))*x*(1-a*x**2*S(z)) + (1-a*r0)*x**2*C(z) + r0
+            return (1-a*r0)*x**2*C(z) + r0
         
-        return newton(func, abs(a)*sqrt(u)*delt, gfunc)
+        return newton(func, abs(a)*sqrt(u)*delt, gfunc, maxiter=100)
+    
+    def _f(self, x):
+        z = (x**2)/self.semimajor_axis
+        return 1 - (x**2/self.rpe)*C(z)
+    
+    def _g(self, x, dt):
+        z = (x**2)/self.semimajor_axis
+        return dt - (1/sqrt(self.GM))*(x**3)*S(z)
+    
+    def _fp(self, x, r):
+        z = (x**2)/self.semimajor_axis
+        return (sqrt(self.GM)/(r*self.rpe))*(z*x*S(z)-x)
+    
+    def _gp(self, x, r):
+        z = (x**2)/self.semimajor_axis
+        return 1 - (x/r)*C(z)
     
     def time_anomaly_by_ta(self, ta):
         e, a, u = self.eccentricity, self.semimajor_axis, self.GM
@@ -203,6 +233,7 @@ class KeplerOrbit(object):
     #    z = a*x**2
     #    return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x
     scalar_herpra = staticmethod(_herpra)
+    synodic = _synodic
 
 
 def parse_kepler(kepler_expr, u, epoch):

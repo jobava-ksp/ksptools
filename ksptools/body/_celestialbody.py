@@ -3,6 +3,7 @@ from numpy import zeros
 from ._body import Body
 from ._atmosphere import parse_atmosphere
 from ._staticlocal import StaticSite
+from .._kepler import KeplerOrbit as kepler
 from .._math import asunits
 from .._vector import statevector
 from .._frame import inertial_frame
@@ -17,9 +18,17 @@ class CelestialBody(Body):
         self.surface_frame = geodetic_surface.frame
         self.atmosphere = None
         self.soi = soi
+        if hasattr(frame, 'orbit'):
+            self.period = frame.orbit.period
+            self.rap = frame.orbit.rap
+            self.rpe = frame.orbit.rpe
+        else:
+            self.period = None
+            self.rap = 0
+            self.rpe = 0
     
     def statevector(self, t):
-        return self.frame.toinertial(statevector.zero(), t)
+        return self.frame.orbit.statevector_by_time(t)
     
     def atmstate_by_statevector(self, stv, t):
         if self.atmosphere is None:
@@ -46,7 +55,10 @@ class CelestialBody(Body):
         return self.surface.unitk(lat, lon, t)
     
     def ijk_by_ll(self, lat, lon, t):
-        return self.surface_uniti(lat,lon,t), self.surface_unitj(lat,lon,t), self.surface_unitk(lat,lon,t)
+        return self.surface.uniti(lat,lon,t), self.surface.unitj(lat,lon,t), self.surface.unitk(lat,lon,t)
+    
+    def synodic(self, other):
+        return kepler.synodic(self.frame.orbit, other.frame.orbit)
 
 
 class System(object):

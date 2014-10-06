@@ -1,3 +1,4 @@
+import copy
 from numpy import log
 from scipy.constants import g as g0
 
@@ -9,6 +10,19 @@ def _stage_from_params(name, ms, isp_0=0, isp_1=0, Tmax=0, Twr_0=0, Twr_1=0):
         m1 = Tmax/(g0*Twr_1)
         m0 = Tmax/(g0*Twr_0)
         return Stage(name, ms-(m0-m1), m0-m1, Tmax, isp_0, isp_1)
+
+
+def _stage_link(stages):
+    stages = iter(stages)
+    top = next(stages)
+    for bottom in stages:
+        bottom.next = top
+        top = bottom
+    return bottom
+
+
+def _stage_copy(stage):
+    return copy.deepcopy(stage)
 
 
 class Stage(object):
@@ -42,10 +56,15 @@ class Stage(object):
         return self.isp_0 * g0 * log(self.m0 / self.m1)
     
     def total_deltav(self):
-        return self.isp_0 * g0 * log(self.m0 / self.m1)
+        if self.next is not None:
+            return self.deltav() + self.next.total_deltav()
+        else:
+            return self.deltav()
     
     next = property(_get_next, _set_next)
-    from_parameters = staticmethod(_stage_from_params)
+    from_params = staticmethod(_stage_from_params)
+    link = staticmethod(_stage_link)
+    copy = staticmethod(_stage_copy)
     
     def coefd(self, delta_m):
         if self.mp == 0:

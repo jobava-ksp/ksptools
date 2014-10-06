@@ -1,87 +1,81 @@
-from __future__ import division
+from ksptools import *
+
+
+
+ksys = kerbolsystem
+t0 = datetosec('Y1 D1, 00:00:00')
+t1 = datetosec('Y2 D72, 3:48:00')
+
+print(t0)
+print(t1)
+
+from ksptools.algorithm._manuver import solve_ejection_prograde, solve_insertion_prograde
+
+def direct_transfer(bodyA, rpe0, t0, bodyB, rpe3, t3, sun):
+    stvi = bodyA.statevector(t0)
+    stvf = bodyB.statevector(t3)
+    kepT = kepler.lambert(stvi.r, t0, stvf.r, t3, sun.GM)
+    stv0 = kepT.statevector_by_time(t0)
+    stv3 = kepT.statevector_by_time(t3)
+    kepI, kepA, t0, t1 = solve_ejection_prograde(bodyA, stv0, t0, rpe0, sun)
+    kepF, kepB, t2, t3 = solve_insertion_prograde(bodyB, stv3, t3, rpe3, sun)
+    stv1 = kepT.statevector_by_time(t1)
+    stv2 = kepT.statevector_by_time(t2)
+    kepT = kepler.lambert(stv1.r, t1, stv2.r, t2, sun.GM)
+    dv_eject = kepA.statevector_by_time(t0).v - kepI.statevector_by_time(t0).v
+    dv_insert = kepF.statevector_by_time(t3).v - kepB.statevector_by_time(t3).v
+    return (dv_eject, dv_insert), [(kepA, t0, t1), (kepT, t1, t2), (kepB, t2, t3)]
 
 import numpy as np
-import numpy.linalg as npla
-import scipy as sp
-import scipy.constants as spconst
-from scipy.integrate import odeint
-from scipy.optimize import brentq, minimize, newton
+import numpy.linalg as la
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize
 
-def accel_func(T):
-    def func(r, v, m):
-        accel_g = -spconst.g
-        accel_t = T/m
-        accel_d = -8e-4*1.22*(v**2)*np.e**(-r/5e+3)
-        return accel_g + accel_t + accel_d
-    return func
+def porkchop(bodyA, rpe0, bodyB, rpe3, ts, sun, res):
+    dept_range = min(bodyA.synodic(bodyB), bodyA.period)
+    rap = max(bodyA.rap, bodyB.rap)
+    rpe = min(bodyA.rpe, bodyA.rpe)
+    Th = 2*(np.pi/np.sqrt(sun.GM))*((rap+rpe)/2)**(3.0/2.0)
+    dt_min = max(Th/2 - bodyB.period, Th/4)
+    dt_max = dt_min + min(2*bodyB.period, Th/2)
+    
+    dept = np.linspace(ts, ts + dept_range, res)
+    durt = np.linspace(ts + dt_min, ts + dt_max, res)
+    
+    xv, yv = np.meshgrid(dept, durt)
+    z = np.empty((res,res))
+    
+    def dvfunc(x):
+        t0, dur = x
+        #try:
+        #    (dve, dvi), _ = direct_transfer(bodyA, rpe0, t0, bodyB, rpe3, t0+dur, sun)
+        #except Exception as e:
+        #    print('{} - {}'.format(sectodate(t0), sectotime(dur)))
+        #    print(str(e))
+        #    exit()
+            
+        (dve, dvi), _ = direct_transfer(bodyA, rpe0, t0, bodyB, rpe3, t0+dur, sun)
+        return la.norm(dve) + la.norm(dvi)
+    
+    for i in range(len(dept)):
+        for j in range(len(durt)):
+            z[i,j] = dvfunc((dept[i], durt[j]))
+    #print(minimize(dvfunc, [ts + dept_range/2, ts + (dt_min + dt_max)/2]))
+    #print(z[0])
+    print('\n'.join(''.join(map(lambda x: 'X' if x == 0 else ' ', z[i])) + '|' for i in range(res)))
 
-def accel_func2d(T, fa):
-    def func(r, v, m):
-        rx, ry = r
-        vx, vy = v
-        ux = rx/npla.norm(r)
-        uy = ry/npla.norm(r)
-        accel_gx = -ux*spconst.g
-        accel_gy = -uy*spconst.g
-        accel_tx = (uy*np.cos(fa) - ux*np.sin(fa))*T/m
-        accel_ty = (ux*np.cos(fa) + uy*np.sin(fa))*T/m
-        
-        vair_x = vx + uy*174
-        vair_y = vy - ux*174
-        vair = np.array([vair_x, vair_y])
-        
-        accel_dy = -8e-4*1.22*vair_y*(npla.norm(vair))*np.e**(-(npla.norm(r)-6e+5)/5e+3)
-        accel_dx = -8e-4*1.22*vair_x*(npla.norm(vair))*np.e**(-(npla.norm(r)-6e+5)/5e+3)
-        ay = accel_gy + accel_ty + accel_dy
-        ax = accel_gx + accel_tx + accel_dx
-        return np.array([ax, ay])
-    return func
+porkchop(ksys['kerbin'], 6.85e+5, ksys['duna'], 3.7e+5, t0, ksys['kerbol'])
+#(dve, dvi), _ = direct_transfer(ksys['kerbin'], 6.85e+5, t0, ksys['duna'], 3.7e+5, t1, ksys['kerbol'])
+#print('{} -> {}'.format(la.norm(dve), la.norm(dvi)))
 
-def dm_func(T, isp_0, isp_1):
-    def func(r, v, m):
-        isp = isp_0 + min(1, np.e**(-(npla.norm(r)-6e+5)/5e+3))*(isp_1 - isp_0)
-        return -T/(isp*spconst.g)
-    return func
+def x(arr):
+    return [arr[i].r[0] for i in range(len(arr))]
 
+def y(arr):
+    return [arr[i].r[1] for i in range(len(arr))]
 
-def _burn_for_t(y0, t, af, df):
-    afunc = lambda y, t: np.array(list(y[2:4]) + list(af(y[0:2], y[2:4], y[4])) + [df(y[0:2], y[2:4], y[4])])
-    rx, ry, vx, vy, m1 = odeint(afunc, y0, np.arange(0, t, 0.01))[-1]
-    return t, array([rx,ry]), array([vx, vy]), m1
+def z(arr):
+    return [arr[i].r[2] for i in range(len(arr))]
 
-def _burn_to_objective(y0, t0, af, df, objfunc):
-    afunc = lambda y, t: np.array(list(y[2:4]) + list(af(y[0:2], y[2:4], y[4])) + [df(y[0:2], y[2:4], y[4])])
-    def sim_func(t):
-        rx, ry, vx, vy, m1 = odeint(afunc, y0, np.arange(0, t, 0.01))[-1]
-        r = np.array([rx,ry])
-        v = np.array([vx,vy])
-        return objfunc(r, v, m1, t)
-    t = brentq(sim_func, 0.5*t0, 2.5*t0)
-    #t = minimize(lambda t: sim_func(t)**2, t0, method='CG').x[0]
-    rx, ry, vx, vy, m1 = odeint(afunc, y0, np.arange(0, t, 0.01))[-1]
-    return t, np.array([rx, ry]), np.array([vx, vy]), m1
-
-def _initial_conditions_twr(r, v, Twr, T, isp_0, isp_1, fa):
-    af = accel_func2d(T, fa)
-    df = dm_func(T, isp_0, isp_1)
-    m0 = T/(Twr*spconst.g)
-    y0 = np.concatenate((list(r), list(v), [m0]))
-    return af, df, m0, y0
-
-def dv_to_alt(alt, Twr, T, isp_0, isp_1, r=[0,6e+5], v=[-174.0,0], fa=np.pi/2):
-    af, df, m0, y0 = _initial_conditions_twr(r, v, Twr, T, isp_0, isp_1, fa)
-    tf = np.sqrt((2*alt)/(spconst.g*(Twr-1)))
-    def altfunc(r, v, m1, t):
-        return (alt+6e+5) - npla.norm(r)
-    t, r, v, m1 = _burn_to_objective(y0, tf, af, df, altfunc)
-    idv = isp_0 * spconst.g * np.log(m0/m1)
-    return t, r, v, m1, m0, idv
-
-t, r, v, m1, m0, idv = dv_to_alt(9e+3, 2.7, 2130e+3, 318.5, 286.8)
-print(t)
-print('{} {}'.format(npla.norm(r), r))
-print('{} {}'.format(npla.norm(v), v))
-print((m1,m0,m0-m1))
-print(idv)
 
 

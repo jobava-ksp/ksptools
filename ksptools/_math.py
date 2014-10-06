@@ -38,6 +38,16 @@ def unit(v):
         return zeros(3)
     return v/norm(v)
 
+def _limit(low, high):
+    def decfunc(func):
+        def limited_func(x):
+            return func(min(high, max(low, x)))
+        limited_func.__name__ = func.__name__
+        limited_func.__doc__ = func.__doc__
+        return limited_func
+    return decfunc
+
+@_limit(-5.0477e+5, 1.0e+200)
 def C(z):
     if z > 0:
         return (1 - cos(z**0.5))/z
@@ -45,7 +55,7 @@ def C(z):
         return (cosh(sqrt(-z)) - 1)/-z
     return 0.5
 
-
+@_limit(-5.0477e+5, 1.0e+200)
 def S(z):
     if z > 0:
         return (sqrt(z) - sin(z**0.5)) / sqrt(z)**3

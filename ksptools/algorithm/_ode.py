@@ -110,27 +110,13 @@ class Controller(object):
         return self._odeint(t0, stv0, m0, dt, body, **kwargs)
 
 
-def _make_objfunc(data, objfunc, body):
-    stvfunc = statevector.interp(ts, stvs)
-    mfunc = interp1d(ts, ms)
-    def func(t):
-        r, v = stvfunc(t).rv
-        m = mfunc(t)
-        return objfunc(body, State(r,v,m,body,t).expand())
-    return func, stvfunc, mfunc
-
-
-def _findroot(data, objfunc, t0, t1, body):
-    yfunc, stvfunc, mfunc = _make_objfunc(data, objfunc, body)
-    
-
 def _minimize(data, objfunc, t0, t1, body):
     stvs, ms, ts = zip(*data)
     def yfunc(i):
         r, v = stvs[i].rv
         m = ms[i]
         t = ts[i]
-        return objfunc(body, State(r,v,m,body,t).expand())
+        return objfunc(body, State(r,v,m,body,t))
     g0 = yfunc(1) - yfunc(0)
     g1 = yfunc(len(ts)-1) - yfunc(len(ts)-2)
     if g0 < 0 and g1 > 0:
@@ -171,19 +157,19 @@ class StagedController(Controller):
         coefd = self._stage.coefd(m - m1)
         f, Tdir, drop_stage = self._staged_update(self._stage, (m<=m0), Tmax / (m*spconst.g), (mrv, ijkllav, pav, t))
         if drop_stage:
-            if not self._stage_dropped:
-                self._stage_dropped = True
-                if self._stage_time_dropped is None or t < self._stage_time_dropped:
-                    self._stage_time_dropped = t
+            self._stage_dropped = True
+            if self._stage_time_dropped is None or t < self._stage_time_dropped:
+                self._stage_time_dropped = t
+            return None, coefd, zeros(3)
+        elif self._stage_dropped and t >= self._stage_time_dropped:
             return None, coefd, zeros(3)
         else:
-            self._stage_dropped = False
             return (Tmax, isp_0, isp_1, f), coefd, Tdir
     
     def _drop_stage(self):
         self._stage = self._stage.next
         self._stage_dropped = False
-        self._stage_time_dropped
+        self._stage_time_dropped = None
     
     def sim_to_objective(self, stage0, t0, stv0, body, objfunc, maxdt=900.0, step_size=0.01):
         self._initialize(stage0)
@@ -204,9 +190,12 @@ class StagedController(Controller):
                 if self._stage_dropped:
                     self._drop_stage()
                     m0 = self._stage.m0
+            elif succ and self._stage_dropped:
+                self._drop_stage()
+                m0 = self._stage.m0
             else:
                 result = stv0, self._stage.partial_deplete(m0), t0
                 break
-        #end while
+        self._finalize()
         return result
 

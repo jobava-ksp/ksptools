@@ -14,25 +14,25 @@ from scipy.optimize import minimize
 # Hohmann #
 #         #
 
-def solve_hohmann_transfer(body, kepA, ts, tpe, tap=None):
+def solve_hohmann_transfer(body, kepA, ts, tgt_pe, tgt_ap=None):
     ## Start at periapsis or apopasis
     stvA_pe, tA_pe = kepA.statevector_by_ta(0), kepA.time_at_ta(0, ts)
     stvA_ap, tA_ap = kepA.statevector_by_ta(pi), kepA.time_at_ta(pi, ts)    
     
-    if tap is None or tpe == tap:
+    if tgt_ap is None or tgt_pe == tgt_ap:
         ## possible transfers to a circular orbit
-        th = sqrt(2*body.GM)*sqrt(tpe**2/(2*tpe))
+        th = sqrt(2*body.GM)*sqrt(tgt_pe**2/(2*tgt_pe))
         transfer_list = [
-            (stvA_pe, tA_pe, tpe, tpe, body.GM),
-            (stvA_ap, tA_ap, tpe, tpe, body.GM)]
+            (stvA_pe, tA_pe, tgt_pe, tgt_pe, body.GM),
+            (stvA_ap, tA_ap, tgt_pe, tgt_pe, body.GM)]
     else:
         ## possible transfers to an elliptical orbit
-        th = sqrt(2*body.GM)*sqrt((tap*tpe)/(tap + tpe))
+        th = sqrt(2*body.GM)*sqrt((tgt_ap*tgt_pe)/(tgt_ap + tgt_pe))
         transfer_list = [
-            (stvA_pe, tA_pe, tpe, tap, body.GM),
-            (stvA_pe, tA_pe, tap, tpe, body.GM),
-            (stvA_ap, tA_ap, tpe, tap, body.GM),
-            (stvA_ap, tA_ap, tap, tpe, body.GM)]
+            (stvA_pe, tA_pe, tgt_pe, tgt_ap, body.GM),
+            (stvA_pe, tA_pe, tgt_ap, tgt_pe, body.GM),
+            (stvA_ap, tA_ap, tgt_pe, tgt_ap, body.GM),
+            (stvA_ap, tA_ap, tgt_ap, tgt_pe, body.GM)]
     
     def _hohmann_dv(r0, v0, ta, tb, u):
         th = sqrt(2*u)*sqrt((ta*tb)/(ta + tb))
@@ -95,11 +95,11 @@ def solve_bielliptic_rondezvous(body, kepA, kepB, ts):
             3*(rA + rB),
             3*(rA**2 + rB**2),
             rA**3 + rB**3 - 8*body.GM*(tB-tA)])
-        return [(tA, rA, rvA, tB, rB, rvB, rT) for rT in roots(coefs) if rT > 0 and imag(rT) == 0]
+        return iter((tA, rA, rvA, tB, rB, rvB, rT) for rT in roots(coefs) if rT > 0 and imag(rT) == 0)
     
     for n in itertools.count():
         for m in range(int(kepB.period/kepA.period) + 1):
-            for tA, rA, rvA, tB, rB, rvB, rT in itertools.chain(solve_at_node(rel_an, rel_dn)):
+            for tA, rA, rvA, tB, rB, rvB, rT in itertools.chain(solve_at_node(rel_an, n, m), solve_at_node(rel_dn, n, m)):
                 hT0 = sqrt(2*body.GM)*(rA*rT/(rA + rT))
                 hT1 = sqrt(2*body.GM)*(rT*rB/(rT + rB))
                 tT = (rA + rT)**3/(16*body.GM) + tA
@@ -142,42 +142,44 @@ def solve_burn(body, kepA, kepB, tc, isp, m0, dm):
 
 def _flyby_parameters(body, stv0, t0, rpe, sun):
     ### orbital parameters (perifocal) ###
-    vesc = sun.relative_statevector(body, stv0, t0).v
-    spec_energy = dot(vesc, vesc)/2 - body.GM/body.soi
-    sma = -body.GM/(2*spec_energy)
+    #vesc = sun.relative_statevector(body, stv0, t0).v ## TODO: fix this
+    vesc = stv0.v - body.statevector(t0).v
     e = 1 + rpe * dot(vesc, vesc)/body.GM
-    p = sma * (1-e**2)
     vpe = sqrt(dot(vesc,vesc) + 2*body.GM/rpe)
-
+    vce = sqrt(body.GM/rpe)
+    
     ### orientation ###
-    ta = arccos(((p/rpe)-1)/e) # angle from apse line / true anomaly
     B = arccos(1/e)            # angle of assymptote
     normal = unit(cross(cross(vesc, unitk), vesc))
 
-    return p, e, vesc, vpe, B, normal
+    return vesc, vpe, vce, B, normal
 
 
 def solve_ejection_prograde(body, stv0, t0, rpe, sun=None):
     if sun is None:
         sun = body.parent_node
-    p, e, vesc, vpe, B, normal = _flyby_parameters(body, stv0, t0, rpe, sun)
+    vesc, vpe, vce, B, normal = _flyby_parameters(body, stv0, t0, rpe, sun)
 
-    r0 = rpe * dot(rotaxis(normal, B), (-unit(vesc))).A1
+    r0 = rpe * dot(rotaxis(normal, B), (unit(-vesc))).A1
     v0 = vpe * unit(cross(normal, r0))
+    vi = vce * unit(cross(normal, r0))
     
+    kepO = kepler.from_statevector(statevector(r0, vi), body.GM, t0)
     kepE = kepler.from_statevector(statevector(r0, v0), body.GM, t0)
     taf = kepE.true_anomaly_by_distance(body.soi)
-    return kepE, t0, t0 + kepE.time_anomaly_by_ta(taf)
+    return kepO, kepE, t0, t0 + kepE.time_anomaly_by_ta(taf)
 
 
 def solve_insertion_prograde(body, stv0, t0, rpe, sun=None):
     if sun is None:
         sun = body.parent_node
-    p, e, vesc, vpe, B, normal = _flyby_parameters(body, stv0, t0, rpe, sun)
+    vesc, vpe, vce, B, normal = _flyby_parameters(body, stv0, t0, rpe, sun)
 
-    r0 = rpe * dot(rotaxis(-B, normal), (-unit(vesc))).A1
+    r0 = rpe * dot(rotaxis(normal, -B), (-unit(vesc))).A1
     v0 = vpe * unit(cross(normal, r0))
-
-    kepE = kepler.from_statevector(statevector(r0,v0), body.GM, t0)
-    taf = kepE.true_anomaly_by_distance(body.soi)
-    return kepE, t0 - kepE.time_anomaly_by_ta(taf), t0
+    vi = vce * unit(cross(normal, r0))
+    
+    kepO = kepler.from_statevector(statevector(r0,vi), body.GM, t0)
+    kepI = kepler.from_statevector(statevector(r0,v0), body.GM, t0)
+    taf = kepI.true_anomaly_by_distance(body.soi)
+    return kepO, kepI, t0 - kepI.time_anomaly_by_ta(taf), t0
