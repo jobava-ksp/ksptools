@@ -8,7 +8,9 @@ from ._vector import statevector
 from ._kepler import KeplerOrbit as kepler
 
 ## vessles ##
-from ._vessle import Stage as stage
+from ._vessle import _Stage as stage
+from ._vessle import _PartialStage as partialstage
+from ._vessle import minimizefuel
 
 ## bodies and systems ##
 from .body._celestialbody import System as system

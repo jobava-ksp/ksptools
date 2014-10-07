@@ -11,7 +11,7 @@ def _stage_from_params(name, ms, isp_0=0, isp_1=0, Tmax=0, Twr_0=0, Twr_1=0):
     else:
         m1 = Tmax/(g0*Twr_1)
         m0 = Tmax/(g0*Twr_0)
-        return Stage(name, ms-(m0-m1), m0-m1, Tmax, isp_0, isp_1)
+        return _Stage(name, ms-(m0-m1), m0-m1, Tmax, isp_0, isp_1)
 
 
 def _stage_link(stages):
@@ -31,7 +31,7 @@ def _stage_copy(stage):
     return copy.deepcopy(stage)
 
 
-class Stage(object):
+class _Stage(object):
     def __init__(self, name, me, mp=0, Tmax=0, isp_0atm=0, isp_1atm=0, coefd_e=0.2, coefd_ep=0.2, next=None):
         self.name = name
         self.me = me
@@ -80,10 +80,10 @@ class Stage(object):
     
     def partial_deplete(self, mc):
         dm = self.m0 - mc
-        return Stage(self.name, self.me, self.mp - dm, self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd(dm), self.next)
+        return _Stage(self.name, self.me, self.mp - dm, self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd(dm), self.next)
 
 
-class PartialStage(object):
+class _PartialStage(object):
     def __init__(self, me, mtfunc, Tmax, isp_0, isp_1, tankmass, tankstep, coefd_e=0.2, coefd_ep=0.3):
         self.me = me
         self.isp_0 = isp_0
@@ -95,7 +95,7 @@ class PartialStage(object):
         self._tank_unit_step = tankstep
         
     def build(self, name, mp):
-        return Stage(name, self.me + self.mtfunc(mp), mp, self.Tmax, self.isp_0, self.isp_1, self.ceofd_e, self.ceofd_ep)
+        return _Stage(name, self.me + self.mtfunc(mp), mp, self.Tmax, self.isp_0, self.isp_1, self.ceofd_e, self.ceofd_ep)
     
     def mtfunc(self, mp):
         units = int(self._tank_unit_step/mp) + 1
@@ -105,13 +105,13 @@ class PartialStage(object):
         return self._tank_unit_mass
 
 
-def minfuel(pl, names, partial_stages, dv, mintwr):
+def minimizefuel(pl, names, partial_stages, dv, mintwr):
     from scipy.optimize import minimize
-    plstage = Stage('pl', pl)
+    plstage = _Stage('pl', pl)
     
     def makestages(mp):
-        stages = itertools.starmap(PartialStage.build, zip(partial_stages, names, mp))
-        return Stage.link([plstage] + list(stages))
+        stages = itertools.starmap(_PartialStage.build, zip(partial_stages, names, mp))
+        return _Stage.link([plstage] + list(stages))
         
     def dvfunc(mp):
         stage0 = makestages(mp)
@@ -136,7 +136,7 @@ def minfuel(pl, names, partial_stages, dv, mintwr):
     for i in reversed(range(len(partial_stages))):
         m0 = stage0.m0 + partial_stages[i].me
         mp0[i] = m0*(e**((dv/len(partial_stages))/(partial_stages[i].isp_0 * g0)) - 1)
-        stage0 = Stage.link([stage0, PartialStage.build(names[i], mp0[i])])
+        stage0 = _Stage.link([stage0, _PartialStage.build(names[i], mp0[i])])
     cos = ({'type': 'eq', 'func': dfvunc, 'jac': grad_dvfunc})
-    minimize(fuelfunc, mp0, jac=grad_fuelfunc, constraints=cons)
+    print(minimize(fuelfunc, mp0, jac=grad_fuelfunc, constraints=cons))
 
