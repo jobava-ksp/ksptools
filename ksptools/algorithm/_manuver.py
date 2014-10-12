@@ -4,7 +4,7 @@ from . import _ode
 from .._kepler import KeplerOrbit as kepler
 from .._vector import statevector
 from .._math import rotaxis, unit, unitk
-from ..path._path import Path as path
+#from ..path._path import Path as path
 
 from numpy import array, arccos, dot, cross, imag, pi, roots, sqrt
 from numpy.linalg import norm
@@ -15,10 +15,19 @@ from scipy.optimize import minimize
 #         #
 
 def solve_hohmann_transfer(body, kepA, ts, tgt_pe, tgt_ap=None):
-    ## Start at periapsis or apopasis
+    """Solve a hohmann transfer from one orbit to another coaxil orbit.
+    
+    @param body The central body.
+    @param KepA The starting orbit.
+    @param ts Starting time for solutions. All solutions occur after ts.
+    @param tgt_pe The periapsis of the target orbit, or the radius for a circular target orbit.
+    @param tgt_ap The apoapsis of the target orbit, or None if circular. (default is None)
+    """
+    ## Starting points at periapsis and apopasis
     stvA_pe, tA_pe = kepA.statevector_by_ta(0), kepA.time_at_ta(0, ts)
     stvA_ap, tA_ap = kepA.statevector_by_ta(pi), kepA.time_at_ta(pi, ts)    
     
+    ## list of possiple transfers
     if tgt_ap is None or tgt_pe == tgt_ap:
         ## possible transfers to a circular orbit
         th = sqrt(2*body.GM)*sqrt(tgt_pe**2/(2*tgt_pe))
@@ -35,6 +44,7 @@ def solve_hohmann_transfer(body, kepA, ts, tgt_pe, tgt_ap=None):
             (stvA_ap, tA_ap, tgt_ap, tgt_pe, body.GM)]
     
     def _hohmann_dv(r0, v0, ta, tb, u):
+        '''Calculate dv for a hohmann transfer from ta to tb'''
         th = sqrt(2*u)*sqrt((ta*tb)/(ta + tb))
         hh = sqrt(2*u)*sqrt((ta*r0)/(ta + r0))
         
@@ -61,12 +71,8 @@ def solve_hohmann_transfer(body, kepA, ts, tgt_pe, tgt_ap=None):
     stvB = statevector(stvTf.r, unit(stvTf.v)*(hB/norm(stvTf.r)))
     kepB = kepler.from_statevector(stvB, u, tB)
     
-    return path([
-            path.coast(body, kepA, ts, tA),
-            path.impulse(body, stvA, stvTi, tA),
-            path.coast(body, kepT, tA, tB),
-            path.impulse(body, stvTf, stvB, tB),
-            path.coast(body, kepB, tB)])
+    return [(tA, stvTi.v - stvA.v, kepT, body),
+            (tB, stvB.v - stvTf.v, kebB, body)]
 
 #                        #
 # Bi-elliptic Rondezvous #
@@ -183,3 +189,29 @@ def solve_insertion_prograde(body, stv0, t0, rpe, sun=None):
     kepI = kepler.from_statevector(statevector(r0,v0), body.GM, t0)
     taf = kepI.true_anomaly_by_distance(body.soi)
     return kepO, kepI, t0 - kepI.time_anomaly_by_ta(taf), t0
+
+
+def solve_transfer(bodyA, rpe0, t0, bodyB, rpe3, t3, sun, refine=True, refine_maxiter=10):    
+    stvi = bodyA.statevector(t0)
+    stvf = bodyB.statevector(t3)
+    KepT = kepler.lambert(stvi.r, t0, stvf.r, t3, sun.GM)
+    
+    def solve_eject_insert(kepT, t0, rpe0, bodyA, t3, rpe3, bodyB, sun):
+        stv0 = kepT.statevector_by_time(t0)
+        stv3 = kepT.statevector_by_time(t3)
+        kepI, kepA, t0, t1 = solve_ejection_prograde(bodyA, stv0, t0, rpe0, sun)
+        kepF, kepB, t2, t3 = solve_insertion_prograde(bodyB, stv3, t3, rpe3, sun)
+        stv1 = kepT.statevector_by_time(t1)
+        stv2 = kepT.statevector_by_time(t2)
+        return (stv1, t1), (stv2, t2), (kepI, kepA, kepB, kepF)
+    
+    (stv1, t1), (stv2, t2), (kepI, kepA, kepB, kepF) = solve_eject_insert(kepT, t0, rpe0, bodyA, t3, rpe3, bodyB, sun)
+        
+    dv_eject = kepA.statevector_by_time(t0).v - kepI.statevector_by_time(t0).v
+    dv_insert = kepF.statevector_by_time(t3).v - kepB.statevector_by_time(t3).v
+    return [(None, None, kepI, bodyA)
+            (t0, dv_eject, kepA, bodyA),
+            (t1, None, kepT, sun),
+            (t2, None, kepB, bodyB),
+            (t3, dv_insert, kepF, bodyB)]
+

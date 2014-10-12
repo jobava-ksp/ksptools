@@ -1,4 +1,3 @@
-import pickle
 from numpy import zeros
 from ._body import Body
 from ._atmosphere import parse_atmosphere
@@ -95,16 +94,16 @@ class System(object):
         self._addnode(keyname, name, site)
         return site
     
-    def export(self, fname):
-        with open(fname, 'w') as f:
-            pickle.dump(self, f)
+    #def save(self, fname):
+    #    with open(fname, 'w') as f:
+    #        pickle.dump(self, f)
     
     def __getitem__(self, keyname):
         return self.nodes[keyname]
     
-    @staticmethod
-    def load(fname):
-        with open(fname, 'r') as f:
-            return pickle.load(f)
+    #@staticmethod
+    #def load(fname):
+    #    with open(fname, 'r') as f:
+    #        return pickle.load(f)
     
 

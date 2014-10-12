@@ -27,8 +27,8 @@ class _Phase(object):
 
 
 class _AltPhase(_Phase):
-    def __init__(self, alt, fa=pi/2, twr=None):
-        _Phase.__init__(self, 'reach altitude {:.3e}m'.format(alt), fa, twr)
+    def __init__(self, alt, fa=pi/2, twr=None, name=''):
+        _Phase.__init__(self, '{}: reach altitude {:.3e}m'.format(name, alt), fa, twr)
         self.tgt_alt = alt
     
     def objfunc(self, body, state):
@@ -36,8 +36,8 @@ class _AltPhase(_Phase):
 
 
 class _ApoapsisPhase(_Phase):
-    def __init__(self, ap, fa=pi/2, twr=None):
-        _Phase.__init__(self, 'bring Apoapsis to {:.3e}m'.format(ap), fa, twr)
+    def __init__(self, ap, fa=pi/2, twr=None, name=''):
+        _Phase.__init__(self, '{}: bring Apoapsis to {:.3e}m'.format(name, ap), fa, twr)
         self.tgt_ap = ap
     
     def objfunc(self, body, state):
@@ -47,8 +47,8 @@ class _ApoapsisPhase(_Phase):
 
 
 class _PeriapsisPhase(_Phase):
-    def __init__(self, pe, fa=0, twr=None):
-        _Phase.__init__(self, 'bring Periapsis to {:.3e}m'.format(pe), fa, twr)
+    def __init__(self, pe, fa=0, twr=None, name=''):
+        _Phase.__init__(self, '{}: bring Periapsis to {:.3e}m'.format(name, pe), fa, twr)
         self.tgt_pe = pe
     
     def objfunc(self, body, state):
@@ -57,9 +57,18 @@ class _PeriapsisPhase(_Phase):
         return (self.tgt_pe - pe)**2
 
 
+class _VPhase(_Phase):
+    def __init__(self, v, fa=pi/2, twr=None, name=''):
+        _Phase.__init__(self, '{}: reach {}m/s'.format(name, v), fa, twr)
+        self.tgt_v = v
+    
+    def objfunc(self, body, state):
+        return (self.tgt_v - norm(state.vsurf))**2
+
+
 class _ReachApoapsisPhase(_Phase):
-    def __init__(self):
-        _Phase.__init__(self, 'reach apoapsis', 0, 0)
+    def __init__(self, name=''):
+        _Phase.__init__(self, '{}: reach apoapsis'.format(name), 0, 0)
     
     def objfunc(self, body, state):
         #_, _, _, ap = kepler.scalar_herpra(state.stv, body.GM)
@@ -106,17 +115,20 @@ class _FlightController(StagedController):
         self.body = body
         return self.sim_to_objective(stage0, stv0, t0, body, objfunc, **kwargs)
 
-def altphase(alt):
-    return _AltPhase(alt)
+def altphase(alt, fa=2/pi, twr=None, name=''):
+    return _AltPhase(alt, fa, twr, name)
 
-def apphase(ap, fa=pi/2):
-    return _ApoapsisPhase(ap, fa)
+def apphase(ap, fa=pi/2, twr=None, name=''):
+    return _ApoapsisPhase(ap, fa, twr, name)
 
-def reachapphase():
-    return _ReachApoapsisPhase()
+def reachapphase(name=''):
+    return _ReachApoapsisPhase(name)
 
-def pephase(pe, fa=0):
-    return _PeriapsisPhase(pe, fa)
+def pephase(pe, fa=0, twr=None, name=''):
+    return _PeriapsisPhase(pe, fa, twr, name)
+
+def vphase(v, fa=pi/2, twr=None, name=''):
+    return _VPhase(v, fa, twr, name)
 
 def launch(phases, stage, t0, stv0, body):
     controller = _FlightController()

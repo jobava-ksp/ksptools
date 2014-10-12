@@ -168,11 +168,15 @@ class KeplerOrbit(object):
     
     def true_anomaly_by_vector(self, iv):
         r, v = self.frame.tolocalvector(iv)
-        ct = dot(r,array([1,0]))
+        ct = r[0]
         if r[1] >= 0:
             return arccos(ct)
         else:
             return 2*pi - arccos(ct)
+    
+    def true_anomaly_by_statevector(self, stv):
+        r = self.frame.tolocal(stv, 0).r
+        return self.true_anomaly_by_vector(unit(r))
     
     def true_anomaly_by_distance(self, r):
         p, e = self.semilatus_rectum, self.eccentricity
@@ -182,6 +186,17 @@ class KeplerOrbit(object):
         offset = self.time_anomaly_by_ta(ta) + self.epoch
         n = int((ts - offset)/self.period)
         return offset + (n+1)*self.period
+    
+    def time_anomaly_by_ta(self, ta):
+        e, a, u = self.eccentricity, self.semimajor_axis, self.GM
+        if e == 1:
+            raise NotImplementedError
+        elif e < 1:
+            E = 2*arctan(sqrt((1-e)/(1+e))*tan(ta/2))
+            return (E - e*sin(E))/sqrt(u/a**3)
+        elif e > 1:
+            F = log((sqrt(e+1)+sqrt(e-1)*tan(ta/2))/(sqrt(e+1)-sqrt(e-1)*tan(ta/2)))
+            return (e*sinh(F)-F)/sqrt(u/(-a)**3)
     
     def _universal_anomaly(self, time):
         if not self.period == float('inf'):
@@ -216,22 +231,6 @@ class KeplerOrbit(object):
         z = (x**2)/self.semimajor_axis
         return 1 - (x/r)*C(z)
     
-    def time_anomaly_by_ta(self, ta):
-        e, a, u = self.eccentricity, self.semimajor_axis, self.GM
-        if e == 1:
-            raise NotImplementedError
-        elif e < 1:
-            E = 2*arctan(sqrt((1-e)/(1+e))*tan(ta/2))
-            return (E - e*sin(E))/sqrt(u/a**3)
-        elif e > 1:
-            F = log((sqrt(e+1)+sqrt(e-1)*tan(ta/2))/(sqrt(e+1)-sqrt(e-1)*tan(ta/2)))
-            return (e*sinh(F)-F)/sqrt(u/(-a)**3)
-    
-    #def _sqrtu_dt(self, x):
-    #    r0, vr0, u = self.rpe[0], self.vpe[1], self.GM
-    #    a = 1/self.semimajor_axis
-    #    z = a*x**2
-    #    return (r0*vr0/sqrt(u))*x**2*C(z) + (1-a*r0)*x**3*S(z) + r0*x
     scalar_herpra = staticmethod(_herpra)
     synodic = _synodic
 

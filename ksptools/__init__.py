@@ -17,6 +17,7 @@ from .body._celestialbody import System as system
 from ._kerbolsystem import kerbolsystem
 
 ## algorithms and simulations ##
-from .algorithm._launch import stdlaunch
+from .algorithm._launch import launch, stdlaunch, altphase, apphase, pephase, vphase
+from .algorithm._manuver import solve_transfer
 
 
