@@ -8,6 +8,7 @@ from scipy.optimize import newton
 from ._math import C, S, asunits, uniti, unitk
 from ._vector import perifocal_vector, statevector
 from ._frame import perifocal_frame
+from ._persistant import PersistantObject
 
 
 def _herpra(stv, u):
@@ -24,7 +25,7 @@ def _synodic(kep1, kep2):
     return (kep1.period * kep2.period)/abs(kep1.period - kep2.period)
 
 
-class KeplerOrbit(object):
+class KeplerOrbit(PersistantObject):
     def __init__(self, ecc, sma, inc, lonasc, argpe, u, epoch):
         """
         :type ecc: float

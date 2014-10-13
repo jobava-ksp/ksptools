@@ -65,6 +65,9 @@ class _RVVector(object):
             norm(self.r), ','.join(map(str,unit(self.r))),
             norm(self.v), ','.join(map(str,unit(self.v))))
     
+    def __getinitargs__(self):
+        return tuple(self._vector)
+    
     r = property(_get_r, _set_r)
     v = property(_get_v, _set_v)
     rv = property(_get_rv)

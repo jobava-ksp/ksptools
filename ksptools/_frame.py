@@ -3,11 +3,12 @@ from __future__ import division
 from numpy import array, arccos, arcsin, cos, cross, dot, mat, pi, sin, sqrt, zeros
 from numpy.linalg import norm
 from ._math import rotz, rotzxz, asunits, uniti, unitk, unitj
+from ._persistant import PersistantObject
 from ._vector import statevector
 from .algorithm._geodetic import geodetic_latitude
 
 
-class Frame(object):
+class Frame(PersistantObject):
     def __init__(self):
         pass
     
@@ -54,17 +55,17 @@ class ConstantDisplacementFrame(InertialFrame):
 
 
 class FunctionalDisplacementFrame(InertialFrame):
-    def __init__(self, origin_func):
+    def __init__(self):
         InertialFrame.__init__(self)
-        self._rvfunc = origin_func
     
     def toinertial(self, stv, t):
-        origin = self._rvfunc(t)
-        return stv + origin
+        return stv + self._get_origin(t)
     
     def tolocal(self, stv, t):
-        origin = self._rvfunc(t)
-        return stv - origin
+        return stv - self._get_origin(t)
+    
+    def _get_origin(self, t):
+        raise NotImplementedError
 
 
 class ConstantOrientationFrame(Frame):
@@ -72,6 +73,8 @@ class ConstantOrientationFrame(Frame):
         Frame.__init__(self)
         self._A = R.I
         self._AI = R
+        self.mapvar('_A', 'A')
+        self.mapvar('_AI', 'AI')
     
     def toinertial(self, stv, t):
         return statevector(dot(self._AI, stv.r).A1, dot(self._AI, stv.v).A1)
@@ -95,6 +98,9 @@ class ConstantRotationFrame(Frame):
         self._A = A
         self._AI = A.I
         self._w = w
+        self.mapvar('_A', 'A')
+        self.mapvar('_AI', 'AI')
+        self.mapvar('_w', 'w')
     
     def _tolocal_A(self, t):
         return dot(rotz(t*self._w), self._A)
@@ -146,14 +152,14 @@ class PerifocalFrame(GeocentricFrame):
 
 class OrbitalFrame(FunctionalDisplacementFrame):
     def __init__(self, orbit):
-        FunctionalDisplacementFrame.__init__(self, self._displacement)
+        FunctionalDisplacementFrame.__init__(self)
         self.orbit = orbit
     
-    def _displacement(self, t):
+    def _get_origin(self, t):
         return self.orbit.statevector_by_time(t)
 
 
-class RotatingEllipsoide(object):
+class RotatingEllipsoide(PersistantObject):
     def __init__(self, Rp, Re, inc, lonasc, argve, sidereal_rate):
         self.frame = GeocentricRotatingFrame(inc, lonasc, argve, sidereal_rate)
         self.f = (Rp + Re)/Re
@@ -161,6 +167,7 @@ class RotatingEllipsoide(object):
         self.Rp = Rp
         self.Re = Re
         self._w = self.frame._w
+        self.mapvar('_w','w')
     
     def surface_height(self, lat):
         return self.Re/sqrt(1-self.e**2*sin(lat)**2)

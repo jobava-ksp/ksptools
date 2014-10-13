@@ -66,13 +66,21 @@ class _Stage(object):
             self.m1 = self.me
             self.m0 = self.me + self.mp
     
-    def __mul__(self, n):
-        return _Stage(self.name, n*self.me, n*self.mp, n*self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd_ep)
+    def __rmul__(self, n):
+        return _Stage(
+                '{}x{}'.format(n, self.name),
+                n*self.me,
+                n*self.mp,
+                n*self.Tmax,
+                self.isp_0,
+                self.isp_1,
+                self.coefd_e,
+                self.coefd_ep)
     
     def __add__(self, other):
         return _Stage.link([self, other])
     
-    next = property(_get_next, _set_next)
+    next = property(_get_next, lambda obj,val: type(obj)._set_next(obj, val))
     from_params = staticmethod(_stage_from_params)
     link = staticmethod(_stage_link)
     expand = staticmethod(_stage_expand)
@@ -101,6 +109,40 @@ class _Stage(object):
         return _Stage(self.name, self.me, self.mp - dm, self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd(dm), self.next)
 
 
+class _BoosterStage(_Stage):
+    def __init__(self, *args, **kwargs):
+        _Stage.__init__(self, *args, **kwargs)
+        self._init_args = (args, kwargs)
+    
+    def _set_next(self, next):
+        if hasattr(self, '_next'):
+            if next is not None:
+                self_ff = self.Tmax/(g0*self.isp_0)
+                next_ff = next.Tmax/(g0*next.isp_0)
+                self_dt = self.mp*self_ff
+                next_dt = next.mp*next_ff
+                if self_dt < next_dt:
+                    dm = self_dt*next_ff
+                    next.mp -= dm
+                    next.m0 -= dm
+                else:
+                    dm = next.mp
+                    next.mp = 0
+                    next.m0 = next.m1
+                self.mp += dm
+                self.m0 = self.me + self.mp + next.m0
+                self.m1 = self.me + next.m0
+                self.isp_0 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_0 for s in [self, next])
+                self.isp_1 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_1 for s in [self, next])
+                self.Tmax += next.Tmax
+            else:
+                raise NotImplementedError
+        else:
+            self.m0 = self.me
+            self.m1 = self.me + self.mp
+        self._next = next
+
+
 class _PartialStage(object):
     def __init__(self, name, me, Tmax, isp_0, isp_1, tmratio=0.125, tankstep=0.0625e+3, coefd_e=0.2, coefd_ep=0.2):
         self.name = name
@@ -113,23 +155,59 @@ class _PartialStage(object):
         self._tank_mass_ratio = tmratio  # tank mass per fuel mass
         self._tank_unit_mass = tankstep
     
-    def __mul__(self, n):
-        return _PartialStage(self.name, n*self.me, n*self.Tmax, self.isp_0, self.isp_1, self.tmratio, n*self.tankstep, self.coefd_e, self.coefd_ep)
+    def __rmul__(self, n):
+        return type(self)(
+                '{}x{}'.format(n, self.name),
+                n*self.me,
+                n*self.Tmax,
+                self.isp_0,
+                self.isp_1,
+                self._tank_mass_ratio,
+                n*self._tank_unit_mass,
+                self.coefd_e,
+                self.coefd_ep)
+    
+    def __or__(self, other):
+        return _PartialStage(
+                self.name + "+" + other.name,
+                self.me + other.me,
+                self.Tmax + other.Tmax,
+                sum(s.Tmax for s in [self, other])/sum(s.Tmax/s.isp_0 for s in [self, other]),
+                sum(s.Tmax for s in [self, other])/sum(s.Tmax/s.isp_1 for s in [self, other]),
+                0,
+                0,
+                self.coefd_e,
+                self.coefd_ep)
     
     def build(self, mp):
-        return _Stage(self.name, self.me + self.mtfunc(mp), mp, self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd_ep)
+        return type(self)._stagetype(self.name, self.me + self.mtfunc(mp), mp, self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd_ep)
+    
+    def burntime(self, mp):
+        ff = self.Tmax/(self.isp_0*g0)
+        return mp/ff
+    
+    def ff(self):
+        return self.Tmax/(self.isp_0*g0)
     
     def mtfunc(self, mp):
-        tank_mass = mp * self._tank_mass_ratio
-        units = int(tank_mass / self._tank_unit_mass) + 1
-        return units * self._tank_unit_mass
-        #return tank_mass
+        if self._tank_mass_ratio > 0:
+            tank_mass = mp * self._tank_mass_ratio
+            units = int(tank_mass / self._tank_unit_mass) + 1
+            return units * self._tank_unit_mass
+        else:
+            return 0
     
-    def gtfunc(self, mp):
-        return self._tank_mass_ratio
+    _stagetype=_Stage
 
 
-def minimizefuel(pl, partial_stages, mintwr=None, dv=5000):
+class _PartialBoosterStage(_PartialStage):
+    def __init__(self, *args, **kwargs):
+        _PartialStage.__init__(self, *args, **kwargs)
+    
+    _stagetype = _BoosterStage
+
+
+def minimizefuel(pl, partial_stages, mintwr=None, dv=5000, fixed=[]):
     from scipy.optimize import minimize
     if mintwr is None:
         mintwr = [0]*len(partial_stages)
@@ -159,18 +237,41 @@ def minimizefuel(pl, partial_stages, mintwr=None, dv=5000):
     def grad_fuelfunc(mp):
         return array([1]*len(mp))
     
+    ## initial value ##
     mp0 = zeros(len(partial_stages))
     stage0 = plstage
-    for i in reversed(range(len(partial_stages))):
+    for i in range(len(partial_stages)):
         m0 = stage0.m0 + partial_stages[i].me
         mp0[i] = m0*(e**((dv/len(partial_stages))/(partial_stages[i].isp_0 * g0)) - 1)
         stage0 = _Stage.link([stage0, _PartialStage.build(partial_stages[i], mp0[i])])
     
+    ## constraints and bounds ##
     cons = []
     cons += [{'type': 'eq', 'fun': dvfunc, 'jac': None}]
     cons += [{'type': 'ineq', 'fun': twrfunc(i), 'jac': None} for i in range(len(mp0))]
+    cons += [{'type': 'ineq', 'fun': lambda mp: mp[i] - minp, 'jac':None} for i, minp, _ in fixed if minp is not None]
+    cons += [{'type': 'ineq', 'fun': lambda mp: maxp - mp[i], 'jac':None} for i, _, maxp in fixed if maxp is not None]
     bounds = [(0, None)]*len(mp0)
+    
+    ## fixed bounds ##
+    #for i, minp, maxp in fixed:
+    #    bounds[i] = (minp, maxp)
+    #    if minp is not None:
+    #        mp0[i] = max(minp, mp0[i])
+    #    if maxp is not None:
+    #        mp0[i] = min(maxp, mp0[i])
+    
     minres = minimize(fuelfunc, mp0, jac=grad_fuelfunc, bounds=bounds, constraints=cons, method='SLSQP', options={'maxiter':200})
-    return [(s.name, s.mp, s.twr()) for s in _Stage.expand(makestages(minres.x), False)[1:]]
+    #return [(s.name, s.mp, s.twr(), s.deltav(), s.total_deltav()) for s in _Stage.expand(makestages(minres.x), False)[1:]]
+    stage0 = plstage
+    for i in range(len(minres.x)):
+        stage = makestages(minres.x[:(i+1)])
+        name = stage.name
+        mp = minres.x[i]
+        twr = stage.twr()
+        dv = stage.deltav()
+        sumdv = stage.total_deltav()
+        yield name, mp, twr, dv, sumdv
+    
 
 

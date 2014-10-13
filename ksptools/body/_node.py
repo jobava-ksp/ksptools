@@ -1,19 +1,21 @@
 import itertools
 
+from .._persistant import PersistantObject
 
-class Node(object):
+class Node(PersistantObject):
     def __init__(self, parent_node=None):
         self._id = next(Node._nextid)
         self.children = set()
         self.parent_node = None
         if parent_node is not None:
             parent_node._add(self)
+        self.mapvar('_id', 'node_id_')
     
     def __eq__(self, other):
         return self._id == other._id
     
-    def __hash__(self):
-        return hash(self._id)
+    #def __hash__(self):
+    #    return hash(self._id)
     
     def _add(self, new_child):
         if new_child.parent_node is not None:
@@ -55,7 +57,11 @@ class Node(object):
             x = fup(prev, next, x)
             prev = next
         return x
-        
+    
+    def __setstate__(self, state):
+        PersistantObject.__setstate__(self, state)
+        Node._nextid = itertools.count(max(next(Node._nextid), self._id+1))
+    
     _nextid = itertools.count()
 
 
