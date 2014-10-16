@@ -1,0 +1,85 @@
+\section{Forces on State Vectors and ODE Integration}
+
+\subsection{Forces}
+\subsubsection{Graviation}
+Given the gravitation parameter $\mu$, the position relative to the center of gravitation $\mathbf{r}$,
+and mass $m$, the force and acceleration are
+\begin{equation}
+    \label{force_gravity}
+    \mathbf{F}_g=-\hat{\mathbf{r}}\frac{\mu{}m}{\mathbf{r}\cdot\mathbf{r}}
+\end{equation}
+\begin{equation}
+    \label{accel_gravity}
+    \mathbf{a}_g=-\hat{\mathbf{r}}\frac{\mu}{\mathbf{r}\cdot\mathbf{r}}
+\end{equation}
+
+\subsubsection{Drag}
+Given the scale height $H$, the atmospheric pressure at sea level $p_0$ in terms of atms, altitude $a$, velocity relative
+to the air $\mathbf{v}_{air}$, and ballistic coefficient $\frac{C_dA}{m}$, the acceleration of drag is
+\begin{equation}
+    \label{accel_drag}
+    \mathbf{a}_d=-\frac{1}{2}v_{air}\mathbf{v}_{air}p_0e^{\frac{-a}{H}}\frac{C_dA}{m}
+\end{equation}
+
+\subsubsection{Thrust}
+Given the specific impulse $I_{sp}$, fuel flow as change in mass $m'$, mass $m$, and direction of thrust $\hat{\mathbf{d}}$,
+the force and acceleration of thrust are
+\begin{equation}
+    \label{force_thrust}
+    \mathbf{F}_t=\hat{\mathbf{d}}I_{sp}m'
+\end{equation}
+\begin{equation}
+    \label{accel_thrust}
+    \mathbf{a}_t=\hat{\mathbf{d}}\frac{I_{sp}m'}{m}
+\end{equation}
+
+\subsection{ODE integration}
+Expanding a bit from the previous section,
+\begin{equation}
+    \begin{array}{c c}
+        \mathbf{y}=
+        \begin{bmatrix}
+            \mathbf{r} \\
+            \mathbf{v} \\
+            m
+        \end{bmatrix} &
+        \mathbf{y}'=
+        \begin{bmatrix}
+            \mathbf{v} \\
+            \mathbf{a} \\
+            m'
+        \end{bmatrix}
+    \end{array}
+\end{equation}
+\[
+    \mathbf{a}=\mathbf{a}_g+\mathbf{a}_d+\mathbf{a}_t
+\]
+
+\subsubsection{Optimization over an ODE}
+Let $S\left(t,\mathbf{r}, \mathbf{v}, m\right)$ be function representing the positional state at $t$ and $\mathbf{y}$.
+Let $C\left(t,s\right)$ be a function representing control state at $t$ and the positional state $s$.
+And let $\mathrm{obj}\left(t,s\right)$ be an objective function to minimize.
+The function $f\left(t,\mathbf{y}\right)$ is defines as
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{OdeFunc($t$,$\mathbf{y}$)}{
+        $\mathbf{r} \leftarrow \mathbf{y}_{0:3}$\;
+        $\mathbf{v} \leftarrow \mathbf{y}_{3:6}$\;
+        $m \leftarrow \mathbf{y}_{6}$\;
+        $s \leftarrow S\left(t,\mathbf{y}\right)$ \;
+        $c \leftarrow C\left(t,s\right)$ \;
+        $\mathbf{a} \leftarrow
+            \mathbf{a}_g\left(s\right) +
+            \mathbf{a}_d\left(s,B_c\right) +
+            \mathbf{a}_t\left(s,\hat{\mathbf{d}}_{c},{I_{sp}}_{c},{m'}_{c}\right)$\;
+        $m' \leftarrow {m'}_{c}$\;
+        \Return{$\begin{bmatrix}
+                \mathbf{v} \\
+                \mathbf{a} \\
+                m'
+            \end{bmatrix}$}
+    }
+    \caption{OdeFunc()}
+\end{function}
+

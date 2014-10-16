@@ -1,0 +1,68 @@
+\section{State Vectors}
+
+\subsection{Position and Velocity}
+The state vector $\mathbf{s}$ is a two tuple of the form $\langle \mathbf{r}, \mathbf{v} \rangle$ where $\mathbf{r}$
+and $\mathbf{v}$ are the position and velocity vectors respectively. Both are relative to the same frame.
+
+
+\subsection{Operations on $\mathbf{s}$}
+\subsubsection{Addition and Subtraction}
+\begin{equation}
+    \begin{array}{l l}
+        \langle \mathbf{r}_a, \mathbf{v}_a \rangle = \langle \mathbf{r}_b, \mathbf{v}_b \rangle + \langle \mathbf{r}_c, \mathbf{v}_c \rangle \Rightarrow &
+        \begin{array}{c}
+            \mathbf{r}_a = \mathbf{r}_b + \mathbf{r}_c \\
+            \mathbf{v}_a = \mathbf{v}_b + \mathbf{v}_c
+        \end{array}
+    \end{array}
+\end{equation}
+\begin{equation}
+    \begin{array}{l l}
+        \langle \mathbf{r}_a, \mathbf{v}_a \rangle = \langle \mathbf{r}_b, \mathbf{v}_b \rangle - \langle \mathbf{r}_c, \mathbf{v}_c \rangle \Rightarrow &
+        \begin{array}{c}
+            \mathbf{r}_a = \mathbf{r}_b - \mathbf{r}_c \\
+            \mathbf{v}_a = \mathbf{v}_b - \mathbf{v}_c
+        \end{array}
+    \end{array}
+\end{equation}
+
+
+\subsubsection{Affine Transformations}
+Given the orientation matrix $\left[\mathbf{Q}_{i\to l}\right]$, and displacement vector $\mathbf{d}$ of a non-moving frame,
+the local state vector $\mathbf{s}_l$ and inertial state vector $\mathbf{s}_i$ are as follows.
+\begin{equation}
+    \begin{array}{c}
+        \mathbf{r}_l = \left[\mathbf{Q}_{i\to l}\right]\left(\mathbf{r}_i - \mathbf{d}\right) \\
+        \mathbf{v}_l = \left[\mathbf{Q}_{i\to l}\right]\mathbf{v}_i
+    \end{array}
+\end{equation}
+\begin{equation}
+    \begin{array}{c}
+        \mathbf{r}_i = \left[\mathbf{Q}_{i\to l}\right]^\mathrm{I}\mathbf{r}_l + \mathbf{d} \\
+        \mathbf{v}_i = \left[\mathbf{Q}_{i\to l}\right]^\mathrm{I}\mathbf{v}_l
+    \end{array}
+\end{equation}
+
+
+\subsection{State Vectors in ODEs}
+For ODEs in the form $\mathbf{f}\left(\mathbf{y},t\right) = \mathbf{y}'$, state vectors can be expressed as:
+\begin{equation}
+    \begin{array}{c c}
+        \mathbf{y}=
+        \begin{bmatrix}
+            \mathbf{r} \\
+            \mathbf{v} \\
+            \vdots
+        \end{bmatrix} &
+        \mathbf{y}'=
+        \begin{bmatrix}
+            \mathbf{v} \\
+            \mathbf{a} \\
+            \vdots
+        \end{bmatrix}
+    \end{array}
+\end{equation}
+where $\mathbf{a}$ represents the sum of all accelerations.
+
+
+

@@ -1,0 +1,147 @@
+\section{Frames}
+\subsection{Definition}
+Simpy put, a frame is a coordinate system. It defines the orientation and rotation of it's axis, as well as the position and
+velocity of the origin relative to its' parent. A frame can be represented as the four-tuple
+$\langle \left[\mathbf{Q}_{p\to l}\right], \mathbf{\omega}, \mathbf{r}_f, \mathbf{v}_f \rangle$.
+$\left[\mathbf{Q}_{p\to l}\right]$ is the orthoginal translation from parent space to local space.
+$\mathbf{\omega}$ is the angular velocity around the frames origin. $\mathbf{r}_f$ is the position of the origin, and $\mathbf{v}_f$
+is its' velocity.
+
+\subsubsection{Transformation to Parent Frame}
+Given the state vector $\langle \mathbf{r}_l, \mathbf{v}_l \rangle$ in the local frame $F$, and the time since epoch $\Delta$,
+elements of the state vector $\langle \mathbf{r}_p, \mathbf{v}_p \rangle$ in the parent frame $P$ are
+\begin{equation}
+    \label{frame_local_to_parent_r}
+    \mathbf{r}_p=\mathbf{r}_{F}+\left[
+            \mathbf{Q}_{F}^{-1}\mathbf{R}_{\hat{\mathbf{\omega}}_{F}}\left(|\omega_{F}|\Delta{}t\right)
+        \right]\mathbf{r}_l
+\end{equation}
+\begin{equation}
+    \label{frame_local_to_parent_v}
+    \mathbf{v}_p=\mathbf{v}_{F}+\left[
+            \mathbf{Q}_{F}^{-1}\mathbf{R}_{\hat{\mathbf{\omega}}_{F}}\left(|\omega_{F}|\Delta{}t\right)
+        \right]\left(\mathbf{v}_l+\mathbf{\omega}_{F}\times\mathbf{r}_l\right)
+\end{equation}
+
+\subsection{Transformation to Local Frame}
+Given the state vector $\langle \mathbf{r}_p, \mathbf{v}_p \rangle$ in the parent frame $P$, and the time since epoch $\Delta{}t$,
+elements of the state vector $\langle \mathbf{r}_l, \mathbf{v}_l \rangle$ in the local frame $F$ are
+\begin{equation}
+    \label{frame_parent_to_local_r}
+    \mathbf{r}_l=\left[
+            {\mathbf{R}_{\hat{\mathbf{\omega}}_{F}}\left(|\omega_{F}|\Delta{}t\right)}^{\mathrm{T}}\mathbf{Q}_{F}
+        \right]\left(\mathbf{r}_{p}-\mathbf{r}_{F}\right)
+\end{equation}
+\begin{equation}
+    \label{frame_parent_to_local_v}
+    \mathbf{v}_l=\left[
+            {\mathbf{R}_{\hat{\mathbf{\omega}}_{F}}\left(|\omega_{F}|\Delta{}t\right)}^{\mathrm{T}}\mathbf{Q}_{F}
+        \right]\left(\mathbf{v}_{p}-\mathbf{v}_{F}\right) - \mathbf{\omega}_{F}\times\mathbf{r}_l
+\end{equation}
+
+\subsection{Inertial Frame}
+The inertial frame. The orientation is the identity, there is no angular momentum, and the displacement is at the center of the
+universal coordinate system.
+
+\begin{equation}
+    \langle \left[\mathbf{I}\right], \mathbf{0}, \mathbf{0}, \mathbf{0} \rangle
+\end{equation}
+
+
+\subsection{Perifocal Frame}
+The basis of the perifocal frame consist of the vectors $\hat{\mathbf{p}}$, $\hat{\mathbf{q}}$, $\hat{\mathbf{w}}$. These vectors
+define the orbital plane. $\hat{\mathbf{w}}$ is in the direction of the normal, $\hat{\mathbf{p}}$ is in the direction of the
+periapsis, and $\hat{\mathbf{q}} = \hat{\mathbf{w}} \times \hat{\mathbf{p}}$. $\left[\mathbf{Q}\right]$ can also be derived from
+the eular angle of orbital parameters $i$, $\Omega$, and $\omega$.
+
+\begin{equation}
+    \label{perifocal_pqw}
+    \langle \begin{bmatrix}
+        \hat{\mathbf{p}} \\
+        \hat{\mathbf{q}} \\
+        \hat{\mathbf{w}}
+    \end{bmatrix}, \mathbf{0}, \mathbf{0}, \mathbf{0} \rangle
+\end{equation}
+\begin{equation}
+    \label{perifocal_iWw}
+    \langle \left[\mathbf{E}\left(\Omega,i,\omega\right)\right]^{\mathrm{T}}, \mathbf{0}, \mathbf{0}, \mathbf{0} \rangle
+\end{equation}
+
+\subsection{Geocentric Equitorial Frame}
+Positions in the geodetic frame are defined by declination ($\delta$), right ascension ($\alpha$), and distance from the center ($r$).
+\begin{equation}
+    \begin{array}{c c c}
+        r = |\mathbf{r}| &
+        \delta = \sin^{-1}{\frac{r_z}{r}} &
+        \alpha =
+        \begin{cases}
+            \cos^{-1}{\left(\frac{r_x}{r\cos{\delta}}\right)} & \frac{r_y}{r} > 0 \\
+            2\pi-\cos^{-1}{\left(\frac{r_x}{r\cos{\delta}}\right)} & \frac{r_y}{r} \leq 0
+        \end{cases}
+    \end{array}
+\end{equation}
+Velocity remains the same, and it's orientation is the same as the inertial frame.
+
+\subsection{Rotating Geocentric Frame}
+This frame introduces planitary rotation and inclination. Inclination is defined by $\left[\mathbf{Q}\right]$, and rotation
+is defined by the angular velocity $\omega$. The axis of rotation is always $\hat{\mathbf{k}}$.
+$\left[\mathbf{Q}\right]$ is the transpose of the eular angle over $\Omega,i,\alpha$.
+That is to say $\left[\mathbf{Q}\right]=\left[\mathbf{E}\left(\Omega,i,\alpha\right)\right]^{\mathrm{T}}$ where $\Omega$ is
+the right ascension of axial tilt, $i$ is the axial tilt, and $\alpha$ is another angle. %TODO: what is alpha?
+
+\begin{equation}
+    \label{rotating_geocentric_frame}
+    \langle\left[\mathbf{Q}\right], \omega\hat{\mathbf{k}}, \mathbf{0}, \mathbf{0} \rangle
+\end{equation}
+
+
+\subsection{Topocentric Frame}
+The topocentric frame introduces geodetic latitude $\phi$, geocentric latitude $\phi'$, longitude $\beta$, radius at the pole $R_p$,
+radius at the equator $R_e$, and altitude $H$.
+
+From this, flattening $f$ and eccentricity $e$ can be derived.
+\begin{equation}
+    \label{topocentric_flattening}
+    f=\frac{R_e-R_p}{R_e}
+\end{equation}
+\begin{equation}
+    \label{topocentric_ecc}
+    e=\sqrt{2f-f^2}
+\end{equation}
+
+
+The surface hight $R_\phi$ at any given $\phi$ is
+\begin{equation}
+    \label{surface_height}
+    R_\phi=\frac{R_e}{\sqrt{1-e^{2}\sin^{2}{\phi}}}=\frac{R_e}{\sqrt{1-\left(2f-f^2\right)\sin^2{\phi}}}
+\end{equation}
+
+
+\begin{equation}
+    \label{topocentric_r_geocentric}
+    \mathbf{r}_f=
+    \left(R_{e}+H\right)\left(
+        \cos{\phi'}\cos{\beta}\hat{\mathbf{i}} +
+        \cos{\phi'}\sin{\beta}\hat{\mathbf{j}} +
+        \sin{\phi'}\hat{\mathbf{k}}\right)
+\end{equation}
+\begin{equation}
+    \label{topocentric_r_geodetic}
+    \mathbf{r}_f=
+    \left(R_\phi+H\right)\cos{\phi}\left(\cos{\beta}\hat{\mathbf{i}} + \sin{\beta}\hat{\mathbf{j}}\right) +
+    \left(R_\phi\left(1-f\right)^{2}+H\right)\sin{\phi}\hat{\mathbf{k}}
+\end{equation}
+
+\subsubsection{Horizon Coordinate System}
+The horizon coordinate system is defined by the direction cosines $\hat{\mathbf{i}}_h$, $\hat{\mathbf{j}}_h$,
+and $\hat{\mathbf{k}}_h$. These vectors form the rows of $\left[\mathbf{Q}_h\right]$.
+\begin{equation}
+    \label{topocentric_horizon_Q}
+    \left[\mathbf{Q}_h\right]=
+        \begin{bmatrix}
+            -\sin{\beta}           &  \cos{\beta}           & 0          \\
+            -\sin{\phi}\cos{\beta} & -\sin{\phi}\sin{\beta} & \cos{\phi} \\
+             \cos{\phi}\cos{\beta} &  \cos{\phi}\sin{\beta} & \sin{\phi}
+        \end{bmatrix}
+\end{equation}
+

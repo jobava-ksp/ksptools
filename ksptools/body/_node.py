@@ -14,9 +14,6 @@ class Node(PersistantObject):
     def __eq__(self, other):
         return self._id == other._id
     
-    #def __hash__(self):
-    #    return hash(self._id)
-    
     def _add(self, new_child):
         if new_child.parent_node is not None:
             new_child.parent_node._remove(new_child)

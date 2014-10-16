@@ -13,10 +13,7 @@ bacc = partialbooster('BACC', 1.505e+3, 315e+3, 250, 230, tankstep=0, tmratio=0)
 kd25k = partialbooster('S1 SRB-KD25k', 3.0e+3, 650e+3, 250, 230, tankstep=0, tmratio=0)
 
 
-
-
-
-for booster_type, booster_fuel in [(bacc, 6.37e+3)]:
+for booster_type, booster_fuel in [(bacc, 6.37e+3), (kd25k, 18.75e+3)]:
     for n in [0,2,3,4,6]:
         if n > 0:
             print('\t{} {} boosters:'.format(n, booster_type.name))
@@ -30,6 +27,6 @@ for booster_type, booster_fuel in [(bacc, 6.37e+3)]:
             twr = [0.5, 1.7, 1.7]
             stages = [poodle, skipper, mainsail]
             fixed = []
-        for name, mp, stwr, dv, sumdv in minimizefuel(7.5e+3, stages, twr, 6200, fixed=fixed):
+        for name, mp, stwr, dv, sumdv in minimizefuel(12.5e+3, stages, twr, 6200, fixed=fixed):
             print('\t\t{}: {:.6e}kg fuel, {:.2f} TWR, {:.1f}m/s | {:.1f}m/s'.format(name,mp,stwr,dv,sumdv))
 

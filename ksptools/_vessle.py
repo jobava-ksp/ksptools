@@ -254,12 +254,12 @@ def minimizefuel(pl, partial_stages, mintwr=None, dv=5000, fixed=[]):
     bounds = [(0, None)]*len(mp0)
     
     ## fixed bounds ##
-    #for i, minp, maxp in fixed:
-    #    bounds[i] = (minp, maxp)
-    #    if minp is not None:
-    #        mp0[i] = max(minp, mp0[i])
-    #    if maxp is not None:
-    #        mp0[i] = min(maxp, mp0[i])
+    for i, minp, maxp in fixed:
+        bounds[i] = (minp, maxp)
+        if minp is not None:
+            mp0[i] = max(minp, mp0[i])
+        if maxp is not None:
+            mp0[i] = min(maxp, mp0[i])
     
     minres = minimize(fuelfunc, mp0, jac=grad_fuelfunc, bounds=bounds, constraints=cons, method='SLSQP', options={'maxiter':200})
     #return [(s.name, s.mp, s.twr(), s.deltav(), s.total_deltav()) for s in _Stage.expand(makestages(minres.x), False)[1:]]

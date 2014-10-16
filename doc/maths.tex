@@ -1,0 +1,78 @@
+\section{Maths}
+\subsection{Projection and Rejection}
+Projection of $\mathbf{a}$ on to $\mathbf{b}$:
+\begin{equation}
+    \label{project}
+    \mathbf{a}_\parallel = \frac{\mathbf{a}\cdot\mathbf{b}}{\mathbf{b}\cdot\mathbf{b}}\mathbf{b}
+\end{equation}
+And rejection:
+\begin{equation}
+    \label{reject}
+    \mathbf{a}_\perp = \mathbf{a}-\mathbf{a}_\parallel = \mathbf{a}-\frac{\mathbf{a}\cdot\mathbf{b}}{\mathbf{b}\cdot\mathbf{b}}\mathbf{b}
+\end{equation}
+
+\subsection{Matrix Rotation}
+Rotation of $\mathbf{x}$ by $\theta$ around axis $n$ to $\mathbf{x}'$ is defined as
+$\mathbf{x}' = \left[\mathbf{R}_n\left(\theta\right)\right]\mathbf{x}$
+\begin{equation}
+    \label{rotx}
+    \left[\mathbf{R}_1\left(\theta\right)\right] =
+    \begin{bmatrix}
+        1 & 0            &  0            \\
+        0 & \cos{\theta} & -\sin{\theta} \\
+        0 & \sin{\theta} &  \cos{\theta}
+    \end{bmatrix}
+\end{equation}
+\begin{equation}
+    \label{roty}
+    \left[\mathbf{R}_2\left(\theta\right)\right] =
+    \begin{bmatrix}
+         \cos{\theta} & 0 & \sin{\theta} \\
+         0            & 1 & 0            \\
+        -\sin{\theta} & 0 & \cos{\theta}
+    \end{bmatrix}
+\end{equation}
+\begin{equation}
+    \label{rotz}
+    \left[\mathbf{R}_3\left(\theta\right)\right] =
+    \begin{bmatrix}
+        \cos{\theta} & -\sin{\theta} & 0 \\
+        \sin{\theta} &  \cos{\theta} & 0 \\
+        0            &  0            & 1
+    \end{bmatrix}
+\end{equation}
+For an axis defnined by the normal vector $\hat{\mathbf{u}}$:
+\[
+    \begin{array}{c}
+        c = \cos{\theta} \\
+        s = \sin{\theta}
+    \end{array}
+\]
+\begin{equation}
+    \label{rotu}
+    \left[\mathbf{R}_{\hat{\mathbf{u}}}\left(\theta\right)\right] =
+    \begin{bmatrix}
+        c+u_x^2\left(1-c\right)           & u_{x}u_{y}\left(1-c\right)-u_{z}s & u_{x}u_{z}\left(1-c\right)+u_{y}s \\
+        u_{y}u_{x}\left(1-c\right)+u_{z}s & c+u_y^2\left(1-c\right)           & u_{y}u_{z}\left(1-c\right)-u_{x}s \\
+        u_{z}u_{x}\left(1-c\right)-u_{y}s & u_{z}u_{z}\left(1-c\right)+u_{x}s & c + u_z^2\left(1 - c\right)
+    \end{bmatrix}
+\end{equation}
+
+\subsection{Eular Angles and Pitch Yaw Roll}
+Eular angles are represented by three angles $\Omega$, $i$, and $\omega$.
+\begin{equation}
+    \label{eular_angle}
+    \left[\mathbf{E}\left(\Omega,i,\omega\right)\right] =
+    \left[\mathbf{R}_3\left(\Omega\right)
+          \mathbf{R}_1\left(i\right)
+          \mathbf{R}_3\left(\omega\right)\right]
+\end{equation}
+Pitch Yaw Roll angles:
+\begin{equation}
+    \label{pitchyawroll_angle_xy}
+    \left[\mathbf{P}\left(p,y,r\right)\right] =
+    \left[\mathbf{R}_2\left(p\right)
+          \mathbf{R}_3\left(y\right)
+          \mathbf{R}_1\left(r\right)\right]
+\end{equation}
+

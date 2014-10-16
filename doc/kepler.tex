@@ -1,0 +1,260 @@
+\section{Kepler Orbits}
+
+\subsection{Parameters}
+
+\subsubsection{State Vector}
+\begin{equation}
+    r = \frac{p}{1+e\cos{\theta}} = a\frac{1-e^2}{1+e\cos{\theta}}
+\end{equation}
+\begin{equation}
+    r_{p} = \frac{p}{1+e}
+\end{equation}
+\begin{equation}
+    r_{a} = \frac{p}{1-e}
+\end{equation}
+\begin{equation}
+    v_r = \frac{\mu}{h}e\sin{\theta} = \frac{\mathbf{r}\cdot\mathbf{v}}{r}
+\end{equation}
+\begin{equation}
+    v_{\bot} = \frac{\mu}{h}\left(1+e\cos{\theta}\right)
+\end{equation}
+\begin{equation}
+    \mathbf{r} = \frac{p}{1+e\cos{\theta}}\left(\cos{\theta}\hat{\mathbf{p}} + \sin{\theta}\hat{\mathbf{q}}\right)
+\end{equation}
+\begin{equation}
+    \mathbf{v} = \frac{\mu}{h}\left(-\sin{\theta}\hat{\mathbf{p}} + \left(e+\cos{\theta}\right)\hat{\mathbf{q}}\right)
+\end{equation}
+
+
+\subsubsection{Flight Angle ($\gamma$)}
+\begin{equation}
+    \tan{\gamma}=\frac{v_r}{v_{\bot}}=\frac{e\sin{\theta}}{1+e\cos{\theta}}
+\end{equation}
+
+
+\subsubsection{Angular Momentum ($\mathbf{h}$)}
+\begin{equation}
+    \mathbf{h} = \mathbf{r} \cdot \mathbf{v}
+\end{equation}
+\begin{equation}
+    h = rv_{\bot}
+\end{equation}
+
+
+\subsubsection{Eccentricity ($e$)}
+\begin{equation}
+    \mathbf{e} = \frac{1}{\mu}\left(\left(v^2-\frac{\mu}{r}\right)\mathbf{r}-rv_{r}\mathbf{v}\right)
+\end{equation}
+\begin{equation}
+    e = \sqrt{1+\frac{h^2}{\mu^2}\left(v^2-\frac{2\mu}{r}\right)}
+\end{equation}
+
+
+\subsubsection{Semimajor-Axis ($a$)}
+\begin{equation}
+    a = \frac{h^2}{\mu}\frac{1}{1-e^2} = \frac{p}{1-e^2} = \frac{r_a + r_p}{2}
+\end{equation}
+
+\subsubsection{Parameter or Semilatus-Rectum ($p$)}
+\begin{equation}
+    p = \frac{h^2}{\mu}
+\end{equation}
+
+
+\subsubsection{Period ($T$)}
+\begin{equation}
+    T = \frac{2\pi}{\sqrt{\mu}}a^{\frac{3}{2}}
+\end{equation}
+
+
+\subsubsection{Mean Anomaly and Eccentric Anomaly}
+\begin{equation}
+    M_e = \frac{2\pi}{T}\Delta{}t = \frac{\mu^2}{h^3}\left(1-e^2\right)^\frac{3}{2}\Delta{}t = E - e\sin{E}
+\end{equation}
+\begin{equation}
+    M_p = \frac{1}{2}\tan{\frac{\theta}{2}} + \frac{1}{6}\tan^{3}{\frac{\theta}{2}}
+\end{equation}
+\begin{equation}
+    M_h = \frac{\mu^2}{h^3}\left(e^2-1\right)^\frac{3}{2}\Delta{}t = e\sinh{F}-F
+\end{equation}
+\begin{equation}
+    E = 2\tan^{-1}{\left(\sqrt{\frac{1-e}{1+e}}\tan{\frac{\theta}{2}}\right)}
+\end{equation}
+\begin{equation}
+    F = 2\tanh^{-1}{\left(\sqrt{\frac{e-1}{e+1}}\tan{\frac{\theta}{2}}\right)}
+\end{equation}
+
+
+\subsection{Universal Anomaly}
+The universal anomaly $\chi$ is defined by:
+\begin{equation}
+    \label{universal_anomaly}
+    \sqrt{\mu}\Delta{}t =
+        \frac{r_{0}v_{r0}}{\sqrt{\mu}}\chi^{2}C\left(\frac{1}{a}\chi^{2}\right) +
+        \left(1-\frac{1}{a}r_{0}\right)\chi^{3}S\left(\frac{1}{a}\chi^{2}\right) +
+        r_{0}\chi
+\end{equation}
+If $t = 0$ at the periapsis, the first term can be neglected. ($v_{r0} = 0$ at the periapsis)
+\begin{equation}
+    \label{universal_anomaly_pe}
+    \sqrt{\mu}t =
+        \left(1-\frac{1}{a}r_{p}\right)\chi^{3}S\left(\frac{1}{a}\chi^{2}\right) +
+        r_{p}\chi
+\end{equation}
+In terms of other anomalies:
+\begin{equation}
+    \label{universal_anomaly_relations}
+    \begin{array}{c c}
+        \chi =
+        \begin{cases}
+            \frac{h}{\sqrt{\mu}}\tan{\frac{\theta}{2}} & \mathrm{parabola} \\
+            \sqrt{a}E & \mathrm{ellipse} \\
+            \sqrt{-a}F & \mathrm{hyperbola}
+        \end{cases}
+        &
+        \Delta{}t \mathrm{\,from\,periapsis}
+    \end{array}
+\end{equation}
+\subsubsection{$C$ and $S$}
+\begin{equation}
+    \label{stumpf_C}
+    \begin{array}{c c}
+        C\left(z\right) =
+        \begin{cases}
+            \frac{1-\cos{\sqrt{z}}}{z} & z > 0 \\
+            \frac{\cosh{\sqrt{-z}}-1}{-z} & z < 0 \\
+            \frac{1}{2} & z = 0
+        \end{cases}
+    &
+    z = \frac{1}{a}\chi^2
+    \end{array}
+\end{equation}
+\begin{equation}
+    \label{stumpf_S}
+    \begin{array}{c c}
+        S\left(z\right) =
+        \begin{cases}
+            \frac{\sqrt{z}-\sin{\sqrt{z}}}{\sqrt{z}^3} & z > 0 \\
+            \frac{\sinh{\sqrt{-z}}-\sqrt{-z}}{\sqrt{-z}^3} & z < 0 \\
+            \frac{1}{6} & z = 0
+        \end{cases}
+    &
+    z = \frac{1}{a}\chi^2
+    \end{array}
+\end{equation}
+\begin{equation}
+    \label{stumpf_C_prime}
+    \frac{dC\left(z\right)}{dz}=\frac{1}{2z}\left(1-S\left(z\right)-2C\left(z\right)\right)
+\end{equation}
+\begin{equation}
+    \label{stumpf_S_prime}
+    \frac{dS\left(z\right)}{dz}=\frac{1}{2z}\left(C\left(z\right)-3S\left(z\right)\right)
+\end{equation}
+
+\subsubsection{Solving for Universal Anomaly}
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{UniversalAnomaly($r_p$, $a$, $\mu$, $\Delta{}t$)}{
+        $F \leftarrow \lambda\left(\chi\right)=
+            \left(1-\frac{r_p}{a}\right)\chi^{3}S\left(\frac{1}{a}\chi^2\right)+
+            r_p\chi-\sqrt{\mu}\Delta{}t$\;
+        $F' \leftarrow \lambda\left(\chi\right)=
+            \left(1-\frac{r_p}{a}\right)C\left(\frac{1}{a}\chi^2\right) + r_p$\;
+        \Return{$\mathrm{newton}\left(F,\frac{\sqrt{\mu}\Delta{}t}{a},F'\right)$}
+    }
+    \caption{UniversalAnomaly()}
+\end{function}
+
+\newpage
+\subsection{Parameters from the State Vector}
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{StateVectorToKepler($\mathbf{r}$, $\mathbf{v}$, $\mu$)}{
+        $v_r \leftarrow \frac{\mathbf{r} \cdot \mathbf{v}}{r}$ \;
+        $\mathbf{h} \leftarrow \mathbf{r} \times \mathbf{v}$ \;
+        $\mathbf{n} \leftarrow \hat{\mathbf{k}}\times\mathbf{h}$ \;
+        $\mathbf{e} \leftarrow \frac{1}{\mu}\left(\left(v^2-\frac{\mu}{r}\right)\mathbf{r}-rv_{r}\mathbf{v}\right)$ \;
+        \eIf{$n = 0$}{
+            $i \leftarrow 0$ \;
+            $\Omega \leftarrow 0$ \;
+            $\omega \leftarrow 0$ \;
+        }{
+            $i \leftarrow \sin^{-1}{\frac{h_z}{h}}$ \;
+            \eIf{$n_y \geq 0$}{
+                $\Omega \leftarrow \cos^{-1}{\frac{n_x}{n}}$ \;
+            }{
+                $\Omega \leftarrow 2\pi-\cos^{-1}{\frac{n_x}{n}}$ \;
+            }
+            \eIf{$e_z \geq 0$}{
+                $\omega \leftarrow \cos^{-1}{\left(\frac{\mathbf{n}\cdot\mathbf{e}}{ne}\right)}$ \;
+            }{
+                $\omega \leftarrow 2\pi-\cos^{-1}{\left(\frac{\mathbf{n}\cdot\mathbf{e}}{ne}\right)}$ \;
+            }
+        }
+        \eIf{$v_r \geq 0$}{
+            $\theta \leftarrow \cos^{-1}{\left(\frac{\mathbf{e}\cdot\mathbf{r}}{er}\right)}$\;
+        }{
+            $\theta \leftarrow 2\pi-\cos^{-1}{\left(\frac{\mathbf{e}\cdot\mathbf{r}}{er}\right)}$\;
+        }
+        \Return{$\langle{}h, e, i, \Omega, \omega, \theta, \mu\rangle$}
+    }
+    \caption{StateVectorToKepler()}
+\end{function}
+
+\newpage
+\subsection{Determination of an Orbit (lambert)}
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{Lambert($\mathbf{r}_1$, $\mathbf{r}_2$, $\Delta{}t$)}{
+        \uIf{prograde}{
+            \[\Delta\theta=
+            \begin{cases}
+                \cos^{-1}{\frac{\mathbf{r}_1\cdot\mathbf{r}_2}{r_1r_2}}      & \left(\mathbf{r}_1\times\mathbf{r}_2\right)_z \geq 0 \\
+                2\pi-\cos^{-1}{\frac{\mathbf{r}_1\cdot\mathbf{r}_2}{r_1r_2}} & \left(\mathbf{r}_1\times\mathbf{r}_2\right)_z < 0
+            \end{cases}
+            \]\;
+        }
+        \ElseIf{retrograde}{
+            \[\Delta\theta=
+            \begin{cases}
+                \cos^{-1}{\frac{\mathbf{r}_1\cdot\mathbf{r}_2}{r_1r_2}}      & \left(\mathbf{r}_1\times\mathbf{r}_2\right)_z < 0 \\
+                2\pi-\cos^{-1}{\frac{\mathbf{r}_1\cdot\mathbf{r}_2}{r_1r_2}} & \left(\mathbf{r}_1\times\mathbf{r}_2\right)_z \geq 0
+            \end{cases}
+            \]\;
+        }
+        $A \leftarrow \sin{\Delta\theta}\sqrt{\frac{r_1r_2}{1-\cos{\Delta\theta}}}$\;
+        $y \leftarrow \lambda\left(z\right)=r_1+r_2+A\frac{zS\left(z\right)-1}{\sqrt{C\left(z\right)}}$\;
+        $F \leftarrow \lambda\left(z\right)=\left(\frac{y\left(z\right)}{C\left(z\right)}\right)^{\frac{3}{2}}S\left(z\right)+
+            A\sqrt{y\left(z\right)}-
+            \sqrt{\mu}\Delta{}t$\;
+        $F' \leftarrow \lambda\left(z\right)=
+            \begin{cases}
+                \left(
+                    \frac{y\left(z\right)}{C\left(z\right)}    
+                \right)^\frac{3}{2}\left(
+                    \frac{1}{2z}\left(
+                        C\left(z\right)-\frac{3S\left(z\right)}{2C\left(z\right)}
+                    \right)+\frac{3S\left(z\right)^{2}}{4C\left(z\right)}
+                \right)
+                +\frac{A}{8}\left(
+                    \frac{3S\left(z\right)}{C\left(z\right)}\sqrt{y\left(z\right)}+
+                    A\sqrt{\frac{C\left(z\right)}{y\left(z\right)}}
+                \right) & z \neq 0 \\
+                \frac{\sqrt{2}}{40}y\left(0\right)^\frac{3}{2}+
+                \frac{A}{8}\left(
+                    \sqrt{y\left(0\right)} + A\sqrt{\frac{1}{2y\left(0\right)}}
+                \right) & z = 0
+            \end{cases}$\;
+        $z \leftarrow \mathrm{newton}\left(F,0,F'\right)$\;
+        $f \leftarrow 1-\frac{y\left(z\right)}{r_1}$\;
+        $g \leftarrow A\sqrt{\frac{y\left(z\right)}{\mu}}$\;
+        %$g' \leftarrow 1-\frac{y\left(z\right){r_2}$\;
+        $\mathbf{v}_1 \leftarrow \frac{1}{g}\left(\mathbf{r}_2-f\mathbf{r}_1\right)$\;
+        \Return{$\mathrm{StateVectorToKepler}\left(\mathbf{r}_1,\mathbf{v}_1,\mu\right)$}
+    }
+    \caption{Lambert()}
+\end{function}
+
