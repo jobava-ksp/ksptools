@@ -1,0 +1,48 @@
+\section{Motion in Frame}
+\subsection{Time Derivatives of Orbital Parameters}
+\subsubsection{RSW Frame}
+$\mathbf{p}$ is the acceleration vector in the RWS Frame.
+\begin{equation}
+    \deriv{h}{t} = rp_{s}
+\end{equation}
+\begin{equation}
+    \deriv{e}{t} =
+        \frac{h}{\mu}\sin{\theta}p_{r}+
+        \frac{1}{\mu{}h}\left(
+            \left(h^{2}+\mu{}r\right)\cos{\theta}+\mu{}er
+        \right)p_{s}
+\end{equation}
+\begin{equation}
+    \deriv{\theta}{t} =
+        \frac{h}{r^{2}}+
+        \frac{1}{eh}\left(
+            \frac{h^{2}}{\mu}\cos{\theta}p_{r}-\left(r+\frac{h^2}{\mu}\right)\sin{\theta}p_{s}
+        \right)
+\end{equation}
+\begin{equation}
+    \deriv{\Omega}{t} =
+        \frac{r}{h\sin{i}}\sin{\left(\omega+\theta\right)}p_{w}
+\end{equation}
+\begin{equation}
+    \deriv{i}{t} =
+        \frac{r}{h}\cos{\left(\omega+\theta\right)}p_{w}
+\end{equation}
+\begin{equation}
+    \deriv{\omega}{t} =
+        -\frac{1}{eh}\left(\frac{h^{2}}{\mu}\cos{\theta}p_{r}-\left(r+\frac{h^{2}}{\mu}\right)\sin{\theta}p_{s}\right)
+        -\frac{r\sin{\left(\omega+\theta\right)}}{h\tan{i}}p_{w}
+\end{equation}
+
+\subsubsection{RPW Frame}
+\begin{equation}
+    \begin{array}{c}
+        p_{rE} = p_{r}\cos{\gamma} - p_{s}\sin{\gamma} \\
+        p_{p}  = p_{r}\sin{\gamma} + p_{s}\cos{\gamma}
+    \end{array}
+\end{equation}
+\begin{equation}
+    \begin{array}{c}
+        p_{r} =  p_{rE}\cos{\gamma} + p_{p}\sin{\gamma} \\
+        p_{s} = -p_{rE}\sin{\gamma} + p_{p}\cos{\gamma}
+    \end{array}
+\end{equation}

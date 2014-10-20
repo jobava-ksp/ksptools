@@ -1,3 +1,7 @@
+import numpy as np
+from numpy import pi
+from numpy import radians
+
 ## date and time ##
 from ._date import datetosec, timetosec, sectodate, sectotime
 
@@ -16,7 +20,7 @@ from ._vessle import minimizefuel
 
 ## bodies and systems ##
 from .body._celestialbody import System as system
-from ._kerbolsystem import kerbolsystem
+from ._kerbolsystem import kerbolsystem as ksys
 
 ## algorithms and simulations ##
 from .algorithm._launch import launch, stdlaunch, altphase, apphase, pephase, vphase

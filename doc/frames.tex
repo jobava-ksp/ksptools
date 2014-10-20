@@ -67,6 +67,38 @@ the eular angle of orbital parameters $i$, $\Omega$, and $\omega$.
     \langle \left[\mathbf{E}\left(\Omega,i,\omega\right)\right]^{\mathrm{T}}, \mathbf{0}, \mathbf{0}, \mathbf{0} \rangle
 \end{equation}
 
+\subsubsection{RSW Frame}
+\begin{equation}
+    \label{perifocal_rsw}
+    \langle
+    \left[\mathbf{R}_{3}\left(\theta\right)\right]^{\mathrm{T}}
+    \begin{bmatrix}
+        \hat{\mathbf{p}} \\
+        \hat{\mathbf{q}} \\
+        \hat{\mathbf{w}}
+    \end{bmatrix},
+    \mathbf{0},
+    \frac{p\left(\cos{\theta}\hat{\mathbf{p}} + \sin{\theta}\hat{\mathbf{q}}\right)}{1+e\cos{\theta}},
+    \frac{\mu}{h}\left(-\sin{\theta}\hat{\mathbf{p}} + \left(e+\cos{\theta}\right)\hat{\mathbf{q}}\right)
+    \rangle
+\end{equation}
+
+\subsubsection{RPW Frame}
+\begin{equation}
+    \label{perifocal_rpw}
+    \langle
+    \left[\mathbf{R}_{3}\left(\theta-\gamma\right)\right]^{\mathrm{T}}
+    \begin{bmatrix}
+        \hat{\mathbf{p}} \\
+        \hat{\mathbf{q}} \\
+        \hat{\mathbf{w}}
+    \end{bmatrix},
+    \mathbf{0},
+    \frac{p\left(\cos{\theta}\hat{\mathbf{p}} + \sin{\theta}\hat{\mathbf{q}}\right)}{1+e\cos{\theta}},
+    \frac{\mu}{h}\left(-\sin{\theta}\hat{\mathbf{p}} + \left(e+\cos{\theta}\right)\hat{\mathbf{q}}\right)
+    \rangle
+\end{equation}
+
 \subsection{Geocentric Equitorial Frame}
 Positions in the geodetic frame are defined by declination ($\delta$), right ascension ($\alpha$), and distance from the center ($r$).
 \begin{equation}
@@ -131,6 +163,22 @@ The surface hight $R_\phi$ at any given $\phi$ is
     \left(R_\phi+H\right)\cos{\phi}\left(\cos{\beta}\hat{\mathbf{i}} + \sin{\beta}\hat{\mathbf{j}}\right) +
     \left(R_\phi\left(1-f\right)^{2}+H\right)\sin{\phi}\hat{\mathbf{k}}
 \end{equation}
+
+\subsubsection{Determining geodetic lattitude ($\phi$)}
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{GodeticLattitudeAltitude($\mathbf{r}$)}{
+        $F \leftarrow \lambda\left(\phi,H\right) = \left(R_{\phi}\left(1-f\right)^{2}+H\right)\sin\phi-r_{z}$\;
+        $\nabla{}F \leftarrow \lambda\left(\phi,H\right) = \langle H\cos\phi, \sin\phi\rangle$\;
+        \Return{$\mathrm{newton}\left(F,
+            \langle
+                \sin^{-1}\left(\frac{r_{z}}{r}\right),
+                r-R_{e}
+            \rangle,\nabla{}F\right)$}
+    }
+    \caption{GeodeticLattitudeAltitude()}
+\end{function}
 
 \subsubsection{Horizon Coordinate System}
 The horizon coordinate system is defined by the direction cosines $\hat{\mathbf{i}}_h$, $\hat{\mathbf{j}}_h$,

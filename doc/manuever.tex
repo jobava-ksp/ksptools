@@ -1,0 +1,17 @@
+\section{Manuevers}
+\subsection{Phase Change}
+Given chaser $l$ and a sattelite $s$, on similar orbits with different true anomalies, $\Delta{}t$ is the amount of time $s$
+will take to reach the pariapsis when $l$ is at the periapsis. $\delta{}t + T_{l}$ is the period of tha phase orbit.
+$n$ is the number of orbits that $s$ will make before rondevue. The $\Delta{}v$ required to begin and end the manuever
+can be found with this algorithm:
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{PhaseChangeDV($T_{s}$, $r_{s}$, $\Delta{}t$, $n$, $\mu$)}{
+        $\delta{}t \leftarrow \frac{\Delta{}t}{n}$\;
+        $r_{p} \leftarrow 2\left(\frac{\left(T_{s}+\delta{}t\right)\sqrt{\mu}}{2\pi}\right)^\frac{2}{3}-r_{s}$\;
+        $h_{p} \leftarrow \sqrt{2\mu}\sqrt{\frac{r_{p}r_{s}}{r_{p}+r_{s}}}$\;
+        \Return{$\left|\frac{h_{p}-h_{s}}{r_{s}}\right|$}
+    }
+    \caption{PhaseChangeDV()}
+\end{function}

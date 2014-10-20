@@ -3,12 +3,15 @@
 \usepackage{algorithm2e}
 \pagestyle{plain}
 \numberwithin{equation}{section}
+\newcommand{\deriv}[2]{\frac{\mathrm{d}#1}{\mathrm{d}#2}}
 \begin{document}
 \tableofcontents{}
 \newpage
 \include{maths}
-\include{statevector}
 \include{forces}
 \include{kepler}
 \include{frames}
+\include{kepler_frames}
+\include{manuever}
+\include{vessle}
 \end{document}

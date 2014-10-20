@@ -1,5 +1,52 @@
 \section{Forces on State Vectors and ODE Integration}
 
+\subsection{State Vectors(Position and Velocity)}
+The state vector $\mathbf{s}$ is a two tuple of the form $\langle \mathbf{r}, \mathbf{v} \rangle$ where $\mathbf{r}$
+and $\mathbf{v}$ are the position and velocity vectors respectively. Both are relative to the same frame.
+
+
+\subsubsection{Operations on $\mathbf{s}$}
+\begin{equation}
+    \begin{array}{l l}
+        \langle \mathbf{r}_a, \mathbf{v}_a \rangle = \langle \mathbf{r}_b, \mathbf{v}_b \rangle + \langle \mathbf{r}_c, \mathbf{v}_c \rangle \Rightarrow &
+        \begin{array}{c}
+            \mathbf{r}_a = \mathbf{r}_b + \mathbf{r}_c \\
+            \mathbf{v}_a = \mathbf{v}_b + \mathbf{v}_c
+        \end{array}
+    \end{array}
+\end{equation}
+\begin{equation}
+    \begin{array}{l l}
+        \langle \mathbf{r}_a, \mathbf{v}_a \rangle = \langle \mathbf{r}_b, \mathbf{v}_b \rangle - \langle \mathbf{r}_c, \mathbf{v}_c \rangle \Rightarrow &
+        \begin{array}{c}
+            \mathbf{r}_a = \mathbf{r}_b - \mathbf{r}_c \\
+            \mathbf{v}_a = \mathbf{v}_b - \mathbf{v}_c
+        \end{array}
+    \end{array}
+\end{equation}
+
+
+\subsection{State Vectors in ODEs}
+For ODEs in the form $\mathbf{f}\left(\mathbf{y},t\right) = \mathbf{y}'$, state vectors can be expressed as:
+\begin{equation}
+    \begin{array}{c c}
+        \mathbf{y}=
+        \begin{bmatrix}
+            \mathbf{r} \\
+            \mathbf{v} \\
+            \vdots
+        \end{bmatrix} &
+        \mathbf{y}'=
+        \begin{bmatrix}
+            \mathbf{v} \\
+            \mathbf{a} \\
+            \vdots
+        \end{bmatrix}
+    \end{array}
+\end{equation}
+where $\mathbf{a}$ represents the sum of all accelerations.
+
+
 \subsection{Forces}
 \subsubsection{Graviation}
 Given the gravitation parameter $\mu$, the position relative to the center of gravitation $\mathbf{r}$,
@@ -54,11 +101,8 @@ Expanding a bit from the previous section,
 \[
     \mathbf{a}=\mathbf{a}_g+\mathbf{a}_d+\mathbf{a}_t
 \]
-
-\subsubsection{Optimization over an ODE}
 Let $S\left(t,\mathbf{r}, \mathbf{v}, m\right)$ be function representing the positional state at $t$ and $\mathbf{y}$.
 Let $C\left(t,s\right)$ be a function representing control state at $t$ and the positional state $s$.
-And let $\mathrm{obj}\left(t,s\right)$ be an objective function to minimize.
 The function $f\left(t,\mathbf{y}\right)$ is defines as
 \begin{function}
     \DontPrintSemicolon
@@ -82,4 +126,41 @@ The function $f\left(t,\mathbf{y}\right)$ is defines as
     }
     \caption{OdeFunc()}
 \end{function}
+
+\subsection{Optimization over an ODE}
+Let $\mathrm{obj}\left(t,s\right)$ be an objective function to minimize. Otpimizing for $\Delta{}t$ is
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{OdeOptimize($\mathbf{r}_0$, $\mathbf{v}_0$, $m_0$, $t_0$, $\mathrm{obj}$, $\Delta{}t_{\mathrm{aprox}}$)}{
+        \Def{$\mathrm{odeint}'$($t$)}{
+            \Return{
+                $\mathrm{OdeInt}\left(
+                    \mathrm{OdeFunc},
+                    \begin{bmatrix}
+                        \mathbf{r}_0 \\
+                        \mathbf{v}_0 \\
+                        m
+                    \end{bmatrix},
+                    t_0 \rightarrow t
+                \right)$
+            }
+        }
+        $F \leftarrow \lambda\left(t,\mathbf{y}\right) = \mathrm{obj}\left(
+                t, S\left(t, \mathrm{odeint}'\left(t\right)\right)
+            \right)$\;
+        \Return{$\mathrm{minimize}\left(F,t_0+\Delta{}t_{\mathrm{aprox}}\right)$}
+    }
+    \caption{OdeOptimize()}
+\end{function}
+
+\pagebreak
+\subsubsection{Example objective functions}
+\begin{description}
+\item[Fuel Depletion] \hfill \\
+$\mathrm{obj}\left(t,s\right) = \left(m - m_{dry}\right)^2$
+\item[Distance From Center] \hfill \\
+$\mathrm{obj}\left(t,s\right) = \left(r - r_{obj}\right)^2$
+\end{description}
+
 

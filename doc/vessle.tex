@@ -1,0 +1,32 @@
+\section{Vessle Design}
+\subsection{Stages}
+Stages are represented as the five-tuple $\langle m_1, m_0, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$. $m_0$ is the dry mass
+$m_0$ is the wet mass, $T_{max}$ is the maximun thrust of the stage, ${I_{sp}}_0$ and ${I_{sp}}_1$ are the specific impulses at
+$0\mathrm{atm}$ and $1\mathrm{atm}$ respectivly. ($m_1$ and $m_0$ both take into account the mass of the next stage).
+\subsubsection{Mass}
+\begin{equation}
+    \label{stage_mass}
+    \begin{array}{c}
+        m_{1_i} = m_{0_{i-1}} + m_{e_{i}} \\
+        m_{0_i} = m_{0_{i-1}} + m_{e_{i}} + m_{p_{i}} \\
+    \end{array}
+\end{equation}
+\subsubsection{Thrust, Specific Impulse, and Fuel Flow}
+\begin{equation}
+    \label{stage_thrust_max}
+    T_{max} = \sum^{E}_{i}{T_{i}} = g_{0}I_{sp}m'
+\end{equation}
+\begin{equation}
+    \label{stage_isp}
+    I_{sp} = {I_{sp}}_{0}+\max\left(0,\min\left(p,1\right)\right)\left({I_{sp}}_{1} - {I_{sp}}_{0}\right)
+\end{equation}
+\begin{equation}
+    \label{stage_ff}
+    m' = \frac{T}{g_{0}I_{sp}}
+\end{equation}
+\subsection{Partial Stages}
+Partial stages represent stages that have variable mass of propellent and can be combined with one another during design
+and optimization. A single partial stage can be defined as a five-tuple $\langle m_e, m_{\rho}, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$.
+$m_e$ is the empty mass, $m_{\rho}$ is the mass ratio of the tank, $T_{max}$ is the maximun thrust produced by all engines
+for this stage. ${I_{sp}}_0$ and ${I_{sp}}_1$ are the specific impulses at atmospheric pressure $0\mathrm{atm}$ and
+$1\mathrm{atm}$ respectively.
