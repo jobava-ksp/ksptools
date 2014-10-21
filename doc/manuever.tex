@@ -15,3 +15,25 @@ can be found with this algorithm:
     }
     \caption{PhaseChangeDV()}
 \end{function}
+
+\subsection{Plane Change}
+\subsubsection{Pure Inclination Change from Circular Orbit}
+\begin{function}
+    \DontPrintSemicolon
+    \SetKwProg{Def}{def}{:}{end}
+    \Def{PureInclinationChangeDV($r_{pe}$, $\mu$, $\Delta{}i$)}{
+        \Def{$\Delta{}v$($r_{ap}$)}{
+            $h_{T} \leftarrow \sqrt{2\mu}\sqrt{\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
+            \Return{$2h_{T}\left(
+                \frac{1}{r_{pe}}+\frac{\sin{\left(\frac{\Delta{}i}{2}\right)}}{r_{ap}}
+            \right)-2\frac{\sqrt{r_{pe}\mu}}{r_{pe}}$}
+        }
+        $r_{ap} \leftarrow \mathrm{minimize}\left(\Delta{}v, r_{pe}\right)$\;
+        $h_{T} \leftarrow \sqrt{2\mu}\sqrt{\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
+        \Return{$\langle
+            \frac{h_{T}-\frac{\sqrt{r_{pe}\mu}}{r_{pe}}}{r_{pe}},
+            2\frac{h_{T}}{r_{ap}}\sin{\left(\frac{\Delta{}i}{2}\right)},
+            \Delta{}v\left(r_{ap}\right) \rangle$}
+    }
+    \caption{PureInclinationChangeDV()}
+\end{function}

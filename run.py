@@ -18,15 +18,17 @@ for booster_type, booster_fuel in [(bacc, 6.37e+3), (kd25k, 18.75e+3)]:
         if n > 0:
             print('\t{} {} boosters:'.format(n, booster_type.name))
             twr = [1.5, 1.7, 2.0]
-            stages = [skipper, mainsail, mainsail | (n * booster_type)]
-            booster_stage_fuel = booster_type.burntime(booster_fuel)*(mainsail.ff() + n*booster_type.ff())
+            stages = [skipper, mainsail, (n * booster_type)]
+            booster_stage_fuel = n * booster_fuel
+            second_stage_fuel = booster_type.burntime(booster_fuel)*mainsail.ff()
             print('\tStage Fuel: {:.3e}kg'.format(booster_stage_fuel))
-            fixed = [(2, booster_stage_fuel, booster_stage_fuel)]
+            fixed = [(1, second_stage_fuel, None),
+                     (2, booster_stage_fuel, booster_stage_fuel)]
         else:
             print('\tNo boosters:')
             twr = [0.5, 1.7, 1.7]
             stages = [poodle, skipper, mainsail]
             fixed = []
-        for name, mp, stwr, dv, sumdv in minimizefuel(12.5e+3, stages, twr, 6200, fixed=fixed):
+        for name, mp, stwr, dv, sumdv in minimizefuel(10.5e+3, stages, twr, 6200, fixed=fixed):
             print('\t\t{}: {:.6e}kg fuel, {:.2f} TWR, {:.1f}m/s | {:.1f}m/s'.format(name,mp,stwr,dv,sumdv))
 

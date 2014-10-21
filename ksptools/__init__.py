@@ -14,8 +14,10 @@ from ._kepler import KeplerOrbit as kepler
 ## vessles ##
 from ._vessle import _Stage as stage
 from ._vessle import _BoosterStage as booster
+from ._vessle import _MergedBoosterStage as mbooster
 from ._vessle import _PartialStage as partialstage
 from ._vessle import _PartialBoosterStage as partialbooster
+from ._vessle import _PartialMergedBoosterStage as partialmbooster
 from ._vessle import minimizefuel
 
 ## bodies and systems ##

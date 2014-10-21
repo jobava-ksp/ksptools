@@ -118,20 +118,73 @@ class _BoosterStage(_Stage):
         if hasattr(self, '_next'):
             if next is not None:
                 self_ff = self.Tmax/(g0*self.isp_0)
+                self_dt = self.mp / self_ff
+                self_dm = self.mp
+                
                 next_ff = next.Tmax/(g0*next.isp_0)
-                self_dt = self.mp*self_ff
-                next_dt = next.mp*next_ff
+                next_dt = next.mp / next_ff
+                next_dm = next.mp
+                
                 if self_dt < next_dt:
-                    dm = self_dt*next_ff
+                    dm = min(next.mp, self_dt * next_ff)
                     next.mp -= dm
                     next.m0 -= dm
+                    self.mp += dm
+                    self.m0 = self.me + self.mp + next.m0
+                    self.m1 = self.me + next.m0
+                    self.isp_0 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_0 for s in [self, next])
+                    self.isp_1 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_1 for s in [self, next])
+                    self.Tmax += next.Tmax
                 else:
-                    dm = next.mp
+                    
+                    next_me = self.me + next.me
+                    next_mp = self.mp - self_dm
+                    next_m0 = next.m1 - next.me + (next_me + next_mp)
+                    next_m1 = next.m1 - next.me + (next_me)
+                    next_isp_0 = self.isp_0
+                    next_isp_1 = self.isp_1
+                    next_Tmax = self.Tmax
+                  
+                    self_me = 0
+                    self_mp = next_mp + self_dm
+                    self_m0 = next_m0 + self_me + self_mp
+                    self_m1 = next_m0 + self_me
+                    self_isp_0 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_0 for s in [self, next])
+                    self_isp_1 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_1 for s in [self, next])
+                    self_Tmax = self.Tmax + next.Tmax
+                    
+                    next.me, next.mp, next.m0, next.m1 = next_me, next_mp, next_m0, next_m1
+                    next.isp_0, next.isp_1, next.Tmax = next_isp_0, next_isp_1, next_Tmax
+                    self.me, self.mp, self.m0, self.m1 = self_me, self_mp, self_m0, self_m1
+                    self.isp_0, self.isp_1, self.Tmax = self_isp_0, self_isp_1, self_Tmax
+                    #print('bad')
+                    '''
                     next.mp = 0
                     next.m0 = next.m1
-                self.mp += dm
-                self.m0 = self.me + self.mp + next.m0
-                self.m1 = self.me + next.m0
+                    self.mp += next.mp
+                    self.m0 = self.me + self.mp + next.m0
+                    self.m1 = self.me + next.m0
+                    self.isp_0 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_0 for s in [self, next])
+                    self.isp_1 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_1 for s in [self, next])
+                    self.Tmax += next.Tmax
+                    '''
+                    
+            else:
+                raise NotImplementedError
+        else:
+            self.m0 = self.me
+            self.m1 = self.me + self.mp
+        self._next = next
+
+
+class _MergedBoosterStage(_Stage):
+    def __init__(self, *args, **kwargs):
+        _Stage.__init__(self, *args, **kwargs)
+        self._init_args = (args, kwargs)
+    
+    def _set_next(self, next):
+        if hasattr(self, '_next'):
+            if next is not None:
                 self.isp_0 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_0 for s in [self, next])
                 self.isp_1 = sum(s.Tmax for s in [self, next])/sum(s.Tmax/s.isp_1 for s in [self, next])
                 self.Tmax += next.Tmax
@@ -167,18 +220,6 @@ class _PartialStage(object):
                 self.coefd_e,
                 self.coefd_ep)
     
-    def __or__(self, other):
-        return _PartialStage(
-                self.name + "+" + other.name,
-                self.me + other.me,
-                self.Tmax + other.Tmax,
-                sum(s.Tmax for s in [self, other])/sum(s.Tmax/s.isp_0 for s in [self, other]),
-                sum(s.Tmax for s in [self, other])/sum(s.Tmax/s.isp_1 for s in [self, other]),
-                0,
-                0,
-                self.coefd_e,
-                self.coefd_ep)
-    
     def build(self, mp):
         return type(self)._stagetype(self.name, self.me + self.mtfunc(mp), mp, self.Tmax, self.isp_0, self.isp_1, self.coefd_e, self.coefd_ep)
     
@@ -197,7 +238,7 @@ class _PartialStage(object):
         else:
             return 0
     
-    _stagetype=_Stage
+    _stagetype = _Stage
 
 
 class _PartialBoosterStage(_PartialStage):
@@ -205,6 +246,13 @@ class _PartialBoosterStage(_PartialStage):
         _PartialStage.__init__(self, *args, **kwargs)
     
     _stagetype = _BoosterStage
+
+
+class _PartialMergedBoosterStage(_PartialStage):
+    def __init__(self, *args, **kwargs):
+        _PartialStage.__init__(self, *args, **kwargs)
+    
+    _stagetype = _MergedBoosterStage
 
 
 def minimizefuel(pl, partial_stages, mintwr=None, dv=5000, fixed=[]):
