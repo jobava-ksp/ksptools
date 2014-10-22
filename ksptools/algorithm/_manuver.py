@@ -1,3 +1,4 @@
+from __future__ import division
 import itertools
 
 from . import _ode
@@ -6,73 +7,33 @@ from .._vector import statevector
 from .._math import rotaxis, unit, unitk
 #from ..path._path import Path as path
 
-from numpy import array, arccos, dot, cross, imag, pi, roots, sqrt
+from numpy import arccos, array, cross, dot, imag, pi, roots, sin, sqrt
 from numpy.linalg import norm
 from scipy.optimize import minimize
 
-#         #
-# Hohmann #
-#         #
 
-def solve_hohmann_transfer(body, kepA, ts, tgt_pe, tgt_ap=None):
-    """Solve a hohmann transfer from one orbit to another coaxil orbit.
-    
-    @param body The central body.
-    @param KepA The starting orbit.
-    @param ts Starting time for solutions. All solutions occur after ts.
-    @param tgt_pe The periapsis of the target orbit, or the radius for a circular target orbit.
-    @param tgt_ap The apoapsis of the target orbit, or None if circular. (default is None)
-    """
-    ## Starting points at periapsis and apopasis
-    stvA_pe, tA_pe = kepA.statevector_by_ta(0), kepA.time_at_ta(0, ts)
-    stvA_ap, tA_ap = kepA.statevector_by_ta(pi), kepA.time_at_ta(pi, ts)    
-    
-    ## list of possiple transfers
-    if tgt_ap is None or tgt_pe == tgt_ap:
-        ## possible transfers to a circular orbit
-        th = sqrt(2*body.GM)*sqrt(tgt_pe**2/(2*tgt_pe))
-        transfer_list = [
-            (stvA_pe, tA_pe, tgt_pe, tgt_pe, body.GM),
-            (stvA_ap, tA_ap, tgt_pe, tgt_pe, body.GM)]
-    else:
-        ## possible transfers to an elliptical orbit
-        th = sqrt(2*body.GM)*sqrt((tgt_ap*tgt_pe)/(tgt_ap + tgt_pe))
-        transfer_list = [
-            (stvA_pe, tA_pe, tgt_pe, tgt_ap, body.GM),
-            (stvA_pe, tA_pe, tgt_ap, tgt_pe, body.GM),
-            (stvA_ap, tA_ap, tgt_pe, tgt_ap, body.GM),
-            (stvA_ap, tA_ap, tgt_ap, tgt_pe, body.GM)]
-    
-    def _hohmann_dv(r0, v0, ta, tb, u):
-        '''Calculate dv for a hohmann transfer from ta to tb'''
-        th = sqrt(2*u)*sqrt((ta*tb)/(ta + tb))
-        hh = sqrt(2*u)*sqrt((ta*r0)/(ta + r0))
-        
-        dv0 = abs(v0 - hh/r0)
-        dv1 = abs(hh/ta - th/ta)
-        return dv0 + dv1
-    
-    ## find the best transfer
-    fdv = lambda x: _hohmann_dv(norm(x[0].r), norm(x[0].v), x[2], x[3], x[4])
-    stvA, tA, r0, r1, u = min(transfer_list, key=fdv)
-    
-    ## orbital energies for transfer orbit (T) and final orbit (B)
-    hT = sqrt(2*u)*sqrt((r0*norm(stvA.r))/(r0+norm(stvA.r)))
-    hB = sqrt(2*u)*sqrt((r0*r1)/(r0+r1))
-    
-    ## Transfer orbit (kepT) and state vectors at tA and tB (stvTi, stvTf)
-    vTi = cross(kepA.normal, unit(stvA.r)*(hT/norm(stvA.r)))
-    stvTi = statevector(stvA.r, vTi)
-    kepT = kepler.from_statevector(stvTi, u, tA)
-    tB = tA + kepT.period/2.0
-    stvTf = kepT.statevector_by_time(tB)
-    
-    ## final orbit (kepB)
-    stvB = statevector(stvTf.r, unit(stvTf.v)*(hB/norm(stvTf.r)))
-    kepB = kepler.from_statevector(stvB, u, tB)
-    
-    return [(tA, stvTi.v - stvA.v, kepT, body),
-            (tB, stvB.v - stvTf.v, kebB, body)]
+def phasechange(r0, r1, time_anomaly, n, mu):
+    dt = time_anomaly/n
+    period = ((2*pi)/sqrt(mu))*((r0+r1)/2)**(3/2)
+    rp = 2*((period+dt)*sqrt(mu)/(2*pi))**(2/3) - r0
+    hs = sqrt(mu*(r0*r1)/(r0+r1))
+    hp = sqrt(mu*(r0*rp)/(r0+rp))
+    return rp, (hp - hs)/r0, n*(period+dt)
+
+
+def incline(r0, delti, mu):
+    def dv(rp):
+        ht = sqrt(mu*(r0*rp)/(r0+rp))
+        hc = sqrt(0.5*mu*r0)
+        return 2*(abs(ht-hc)/r0) + 2*(ht/rp)*sin(delti/2)
+    def dvp(rp):
+        return (dv(rp + 50) - dv(rp-50))/100
+    res = minimize(dv, r0, jac=dvp)
+    #print(res)
+    rp = res.x[0]
+    ht = sqrt(mu*(r0*rp)/(r0+rp))
+    hc = sqrt(0.5*mu*r0)
+    return rp, (ht-hc)/r0, 2*(ht/rp)*sin(delti/2), dv(rp)
 
 
 def _flyby_parameters(body, stv0, t0, rpe, sun):

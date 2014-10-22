@@ -1,8 +1,9 @@
 \section{Vessle Design}
 \subsection{Stages}
-Stages are represented as the five-tuple $\langle m_1, m_0, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$. $m_0$ is the dry mass
-$m_0$ is the wet mass, $T_{max}$ is the maximun thrust of the stage, ${I_{sp}}_0$ and ${I_{sp}}_1$ are the specific impulses at
-$0\mathrm{atm}$ and $1\mathrm{atm}$ respectivly. ($m_1$ and $m_0$ both take into account the mass of the next stage).
+Stages are represented as the five-tuple $\langle m_e, m_p, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$. $m_e$ is the dry mass
+$m_p$ is the mass of propellent, $T_{max}$ is the maximun thrust of the stage, ${I_{sp}}_0$ and ${I_{sp}}_1$ are the specific impulses at
+$0\mathrm{atm}$ and $1\mathrm{atm}$ respectivly. $m_{1_i}$ is the sum of the dry mass of stage $i$ and the total mass of stages 0 to $i-1$.
+$m_{0_i}$ is the total wet mass of stages 0 to $i$.
 \subsubsection{Mass}
 \begin{equation}
     \label{stage_mass}
@@ -24,6 +25,13 @@ $0\mathrm{atm}$ and $1\mathrm{atm}$ respectivly. ($m_1$ and $m_0$ both take into
     \label{stage_ff}
     m' = \frac{T}{g_{0}I_{sp}}
 \end{equation}
+\subsection{Combining Stages}
+\subsubsection{Multiplying}
+Given a stage $S = \langle m_1, m_0, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$, and $S' = nS$:
+\begin{equation}
+    S' = 
+\end{equation} 
+
 \subsection{Partial Stages}
 Partial stages represent stages that have variable mass of propellent and can be combined with one another during design
 and optimization. A single partial stage can be defined as a five-tuple $\langle m_e, m_{\rho}, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$.

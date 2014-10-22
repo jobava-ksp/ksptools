@@ -7,11 +7,13 @@ can be found with this algorithm:
 \begin{function}
     \DontPrintSemicolon
     \SetKwProg{Def}{def}{:}{end}
-    \Def{PhaseChangeDV($T_{s}$, $r_{s}$, $\Delta{}t$, $n$, $\mu$)}{
+    \Def{PhaseChangeDV($r_{s_0}$, $r_{s_1}$, $\Delta{}t$, $n$, $\mu$)}{
         $\delta{}t \leftarrow \frac{\Delta{}t}{n}$\;
-        $r_{p} \leftarrow 2\left(\frac{\left(T_{s}+\delta{}t\right)\sqrt{\mu}}{2\pi}\right)^\frac{2}{3}-r_{s}$\;
-        $h_{p} \leftarrow \sqrt{2\mu}\sqrt{\frac{r_{p}r_{s}}{r_{p}+r_{s}}}$\;
-        \Return{$\left|\frac{h_{p}-h_{s}}{r_{s}}\right|$}
+        $T_{s} \leftarrow \frac{2\pi}{\sqrt{\mu}}\left(\frac{r_{s_0}+r_{s_1}}{2}\right)^{\frac{3}{2}}$\;
+        $r_{p} \leftarrow 2\left(\frac{\left(T_{s}+\delta{}t\right)\sqrt{\mu}}{2\pi}\right)^\frac{2}{3}-r_{s_0}$\;
+        $h_{s} \leftarrow \sqrt{\mu\frac{r_{s_0}r_{s_1}}{r_{s_0}+r_{s_1}}}$\;
+        $h_{p} \leftarrow \sqrt{\mu\frac{r_{p}r_{s_0}}{r_{p}+r_{s_0}}}$\;
+        \Return{$\left|\frac{h_{p}-h_{s}}{r_{s_0}}\right|$}
     }
     \caption{PhaseChangeDV()}
 \end{function}
@@ -21,19 +23,22 @@ can be found with this algorithm:
 \begin{function}
     \DontPrintSemicolon
     \SetKwProg{Def}{def}{:}{end}
-    \Def{PureInclinationChangeDV($r_{pe}$, $\mu$, $\Delta{}i$)}{
+    \Def{PureInclinationChangeDV($r_{pe}$, $\Delta{}i$, $\mu$)}{
         \Def{$\Delta{}v$($r_{ap}$)}{
-            $h_{T} \leftarrow \sqrt{2\mu}\sqrt{\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
-            \Return{$2h_{T}\left(
-                \frac{1}{r_{pe}}+\frac{\sin{\left(\frac{\Delta{}i}{2}\right)}}{r_{ap}}
-            \right)-2\frac{\sqrt{r_{pe}\mu}}{r_{pe}}$}
+            $h_{T} \leftarrow \sqrt{\mu\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
+            $h_{C} \leftarrow \sqrt{\frac{\mu{}r_{pe}}{2}}$\;
+            \Return{$
+                2\frac{h_{T}-h_{C}}{r_{pe}}+
+                2\frac{h_{T}}{r_{ap}}\sin{\left(\frac{\Delta{}i}{2}\right)}$}
         }
         $r_{ap} \leftarrow \mathrm{minimize}\left(\Delta{}v, r_{pe}\right)$\;
-        $h_{T} \leftarrow \sqrt{2\mu}\sqrt{\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
+        $h_{T} \leftarrow \sqrt{\mu\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
+        $h_{C} \leftarrow \sqrt{\frac{\mu{}r_{pe}}{2}}$\;
         \Return{$\langle
-            \frac{h_{T}-\frac{\sqrt{r_{pe}\mu}}{r_{pe}}}{r_{pe}},
-            2\frac{h_{T}}{r_{ap}}\sin{\left(\frac{\Delta{}i}{2}\right)},
-            \Delta{}v\left(r_{ap}\right) \rangle$}
+                r_{ap},
+                \frac{h_{T}-h_{C}}{r_{pe}},
+                2\frac{h_{T}}{r_{ap}}\sin{\left(\frac{\Delta{}i}{2}\right)}
+            \rangle$}
     }
     \caption{PureInclinationChangeDV()}
 \end{function}

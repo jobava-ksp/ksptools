@@ -26,6 +26,6 @@ from ._kerbolsystem import kerbolsystem as ksys
 
 ## algorithms and simulations ##
 from .algorithm._launch import launch, stdlaunch, altphase, apphase, pephase, vphase
-from .algorithm._manuver import solve_transfer
+from .algorithm._manuver import phasechange, incline
 
 
