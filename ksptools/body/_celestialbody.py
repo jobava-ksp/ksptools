@@ -59,6 +59,11 @@ class CelestialBody(Body):
     
     def synodic(self, other):
         return kepler.synodic(self.frame.orbit, other.frame.orbit)
+    
+    def _get_orbit(self):
+        return self.frame.orbit
+    
+    orbit = property(_get_orbit)
 
 
 class System(object):

@@ -1,7 +1,6 @@
 from __future__ import division
 import itertools
 
-from . import _ode
 from .._kepler import KeplerOrbit as kepler
 from .._vector import statevector
 from .._math import rotaxis, unit, unitk
@@ -22,18 +21,22 @@ def phasechange(r0, r1, time_anomaly, n, mu):
 
 
 def incline(r0, delti, mu):
-    def dv(rp):
-        ht = sqrt(mu*(r0*rp)/(r0+rp))
-        hc = sqrt(0.5*mu*r0)
-        return 2*(abs(ht-hc)/r0) + 2*(ht/rp)*sin(delti/2)
-    def dvp(rp):
-        return (dv(rp + 50) - dv(rp-50))/100
-    res = minimize(dv, r0, jac=dvp)
+    def dv(delv):
+        hc = sqrt(mu*r0)
+        ht = hc + delv*r0
+        vas = roots([-2*mu, ht, r0])
+        print(vas)
+        va = max(vas)
+        return 2*delv + 2*va*sin(delti/2)
+    #def dvp(rp):
+    #    return (dv(rp + 50) - dv(rp-50))/100
+    res = minimize(dv, 0)
     #print(res)
-    rp = res.x[0]
-    ht = sqrt(mu*(r0*rp)/(r0+rp))
-    hc = sqrt(0.5*mu*r0)
-    return rp, (ht-hc)/r0, 2*(ht/rp)*sin(delti/2), dv(rp)
+    delv = res.x[0]
+    hc = sqrt(mu*r0)
+    ht = hc + delv*r0
+    va = max(roots([-2*mu, ht, r0]))
+    return ht/va, delv, 2*va*sin(delti/2), dv(delv)
 
 
 def _flyby_parameters(body, stv0, t0, rpe, sun):
@@ -81,10 +84,10 @@ def solve_insertion_prograde(body, stv0, t0, rpe, sun=None):
     return kepO, kepI, t0 - kepI.time_anomaly_by_ta(taf), t0
 
 
-def solve_transfer(bodyA, rpe0, t0, bodyB, rpe3, t3, sun, refine=True, refine_maxiter=10):    
+def solve_transfer(bodyA, rpe0, t0, bodyB, rpe3, t3, sun, refine=False, refine_maxiter=10):    
     stvi = bodyA.statevector(t0)
     stvf = bodyB.statevector(t3)
-    KepT = kepler.lambert(stvi.r, t0, stvf.r, t3, sun.GM)
+    kepT = kepler.lambert(stvi.r, t0, stvf.r, t3, sun.GM)
     
     def solve_eject_insert(kepT, t0, rpe0, bodyA, t3, rpe3, bodyB, sun):
         stv0 = kepT.statevector_by_time(t0)
@@ -96,10 +99,14 @@ def solve_transfer(bodyA, rpe0, t0, bodyB, rpe3, t3, sun, refine=True, refine_ma
         return (stv1, t1), (stv2, t2), (kepI, kepA, kepB, kepF)
     
     (stv1, t1), (stv2, t2), (kepI, kepA, kepB, kepF) = solve_eject_insert(kepT, t0, rpe0, bodyA, t3, rpe3, bodyB, sun)
-        
+    
+    if refine:
+        for i in range(refine_maxiter):
+            ...
+    
     dv_eject = kepA.statevector_by_time(t0).v - kepI.statevector_by_time(t0).v
     dv_insert = kepF.statevector_by_time(t3).v - kepB.statevector_by_time(t3).v
-    return [(None, None, kepI, bodyA)
+    return [(None, None, kepI, bodyA),
             (t0, dv_eject, kepA, bodyA),
             (t1, None, kepT, sun),
             (t2, None, kepB, bodyB),

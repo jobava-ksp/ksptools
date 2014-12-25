@@ -24,20 +24,22 @@ can be found with this algorithm:
     \DontPrintSemicolon
     \SetKwProg{Def}{def}{:}{end}
     \Def{PureInclinationChangeDV($r_{pe}$, $\Delta{}i$, $\mu$)}{
-        \Def{$\Delta{}v$($r_{ap}$)}{
-            $h_{T} \leftarrow \sqrt{\mu\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
+        \Def{totaldv($\Delta{}v$)}{
             $h_{C} \leftarrow \sqrt{\frac{\mu{}r_{pe}}{2}}$\;
+            $h_{T} \leftarrow h_{C} + r_{pe}\Delta{}v$\;
+            $v_{ap} \leftarrow \mathrm{root}\left(r_{pe}v_{ap}^2 + h_{T}v_{ap} - 2\mu = 0\right)$\;
             \Return{$
-                2\frac{h_{T}-h_{C}}{r_{pe}}+
-                2\frac{h_{T}}{r_{ap}}\sin{\left(\frac{\Delta{}i}{2}\right)}$}
+                2\frac{\left|h_{T}-h_{C}\right|}{r_{pe}}+
+                2v_{ap}\sin{\left(\frac{\Delta{}i}{2}\right)}$}
         }
-        $r_{ap} \leftarrow \mathrm{minimize}\left(\Delta{}v, r_{pe}\right)$\;
-        $h_{T} \leftarrow \sqrt{\mu\frac{r_{pe}r_{ap}}{r_{pe}+r_{ap}}}$ \;
+        $\Delta{}v \leftarrow \mathrm{minimize}\left(\mathrm{totaldv}, 0\right)$\;
         $h_{C} \leftarrow \sqrt{\frac{\mu{}r_{pe}}{2}}$\;
+        $h_{T} \leftarrow h_{C} + r_{pe}\Delta{}v$\;
+        $v_{ap} \leftarrow \mathrm{root}\left(r_{pe}v_{ap}^2 + h_{T}v_{ap} - 2\mu = 0\right)$\;
         \Return{$\langle
                 r_{ap},
                 \frac{h_{T}-h_{C}}{r_{pe}},
-                2\frac{h_{T}}{r_{ap}}\sin{\left(\frac{\Delta{}i}{2}\right)}
+                2v_{ap}\sin{\left(\frac{\Delta{}i}{2}\right)}
             \rangle$}
     }
     \caption{PureInclinationChangeDV()}

@@ -5,7 +5,6 @@ from numpy.linalg import norm
 from ._math import rotz, rotzxz, asunits, uniti, unitk, unitj
 from ._persistant import PersistantObject
 from ._vector import statevector
-from .algorithm._geodetic import geodetic_latitude
 
 
 class Frame(PersistantObject):
@@ -194,6 +193,7 @@ class RotatingEllipsoide(PersistantObject):
         return self.frame.toinertial(rotz(lon) * statevector(r0, v0), t)
     
     def geodetic_llav(self, stv, t):
+        from .algorithm._geodetic import geodetic_latitude
         lat, alt = geodetic_latitude(stv.r, self.Re, self.e)
         r, v = self.frame.tolocal(stv, t).rv
         d = norm(stv.r[0:2])

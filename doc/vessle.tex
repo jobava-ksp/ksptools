@@ -3,7 +3,7 @@
 Stages are represented as the five-tuple $\langle m_e, m_p, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$. $m_e$ is the dry mass
 $m_p$ is the mass of propellent, $T_{max}$ is the maximun thrust of the stage, ${I_{sp}}_0$ and ${I_{sp}}_1$ are the specific impulses at
 $0\mathrm{atm}$ and $1\mathrm{atm}$ respectivly. $m_{1_i}$ is the sum of the dry mass of stage $i$ and the total mass of stages 0 to $i-1$.
-$m_{0_i}$ is the total wet mass of stages 0 to $i$.
+$m_{0_i}$ is the total wet mass of stages 0 to $i$. $\Delta{}t$ is the amound of time it takes the stage to deplete at $0\mathrm{atm}$.
 \subsubsection{Mass}
 \begin{equation}
     \label{stage_mass}
@@ -14,10 +14,6 @@ $m_{0_i}$ is the total wet mass of stages 0 to $i$.
 \end{equation}
 \subsubsection{Thrust, Specific Impulse, and Fuel Flow}
 \begin{equation}
-    \label{stage_thrust_max}
-    T_{max} = \sum^{E}_{i}{T_{i}} = g_{0}I_{sp}m'
-\end{equation}
-\begin{equation}
     \label{stage_isp}
     I_{sp} = {I_{sp}}_{0}+\max\left(0,\min\left(p,1\right)\right)\left({I_{sp}}_{1} - {I_{sp}}_{0}\right)
 \end{equation}
@@ -25,12 +21,169 @@ $m_{0_i}$ is the total wet mass of stages 0 to $i$.
     \label{stage_ff}
     m' = \frac{T}{g_{0}I_{sp}}
 \end{equation}
-\subsection{Combining Stages}
-\subsubsection{Multiplying}
-Given a stage $S = \langle m_1, m_0, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$, and $S' = nS$:
+\subsubsection{Stage Depletion Time}
 \begin{equation}
-    S' = 
-\end{equation} 
+    \label{stage_dt}
+    \Delta{}t = \frac{m_{p}}{m'} = \frac{g_{0}I_{sp}m_p}{T}
+\end{equation}
+\subsection{Combining Stages}
+\subsubsection{Simultanious ignition of identical stages}
+Given a stage $S = \langle m_e, m_p, T_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle$, and $S' = nS$:
+\begin{equation}
+    S' = \langle nm_{e}, nm_{p}, nT_{max}, {I_{sp}}_0, {I_{sp}}_1 \rangle
+\end{equation}
+\subsubsection{Simultanious, seperate, dropable stages}
+Given stages $S_{i}$ and $S_{i+1}$, $\langle S_{i}', S_{i+1}' \rangle = S_{i} || S_{i+1}$.
+The `$||$' operator in this case is not transitive.
+It is assumed that $S_{i+1}$ will drop as soon as it is depleted.
+\begin{equation}
+    S_{i}' =
+        \begin{cases}
+            \begin{pmatrix}
+                m_{e_{i}} \\
+                m_{p_{i}} - {m'}_{i}{\Delta{}t}_{i+1} \\
+                T_{max_{i}} \\
+                {{I_{sp}}_{0}}_i \\
+                {{I_{sp}}_{1}}_i
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} \leq {\Delta{}t}_{i} \\
+            \begin{pmatrix}
+                m_{e_{i}} + m_{e_{i+1}} \\
+                m_{p_{i+1}} - {m'}_{i+1}{\Delta{}t}_{i} \\
+                T_{max_{i+1}} \\
+                {{I_{sp}}_{0}}_{i+1} \\
+                {{I_{sp}}_{1}}_{i+1}
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} > {\Delta{}t}_{i}
+        \end{cases}
+\end{equation}
+\begin{equation}
+    S_{i+1}' =
+        \begin{cases}
+            \begin{pmatrix}
+                m_{e_{i+1}} \\
+                m_{p_{i+1}} + {m'}_{i}{\Delta{}t}_{i+1} \\
+                T_{max_{i}} + T_{max_{i+1}} \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{0_i}'+m_{0_{i+1}}'}\right) \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{1_i}'+m_{1_{i+1}}'}\right)
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} \leq {\Delta{}t}_{i} \\
+            \begin{pmatrix}
+                0 \\
+                m_{p_{i+1}} - {m'}_{i+1}{\Delta{}t}_{i} \\
+                T_{max_{i}} + T_{max_{i+1}} \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{0_i}'+m_{0_{i+1}}'}\right) \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{1_i}'+m_{1_{i+1}}'}\right)
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} > {\Delta{}t}_{i}
+        \end{cases}
+\end{equation}
+\subsubsection{Simultanious, seperate, non-dropable}
+Given stages $S_{i}$ and $S_{i+1}$, $\langle S_{i}', S_{i+1}' \rangle = S_{i} | S_{i+1}$.
+The `$|$' operator in this case is not transitive.
+$S_{i+1}$ is not dropped.
+\begin{equation}
+    S_{i}' =
+        \begin{cases}
+            \begin{pmatrix}
+                m_{e_{i}} + m_{e_{i+1}} \\
+                m_{p_{i}} - {m'}_{i}{\Delta{}t}_{i+1} \\
+                T_{max_{i}} \\
+                {{I_{sp}}_{0}}_i \\
+                {{I_{sp}}_{1}}_i
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} \leq {\Delta{}t}_{i} \\
+            \begin{pmatrix}
+                m_{e_{i}} + m_{e_{i+1}} \\
+                m_{p_{i+1}} - {m'}_{i+1}{\Delta{}t}_{i} \\
+                T_{max_{i+1}} \\
+                {{I_{sp}}_{0}}_{i+1} \\
+                {{I_{sp}}_{1}}_{i+1} \\
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} > {\Delta{}t}_{i}
+        \end{cases}
+\end{equation}
+\begin{equation}
+    S_{i+1}' =
+        \begin{cases}
+            \begin{pmatrix}
+                0 \\
+                m_{p_{i+1}} + {m'}_{i}{\Delta{}t}_{i+1} \\
+                T_{max_{i}} + T_{max_{i+1}} \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{0_i}'+m_{0_{i+1}}'}\right) \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{1_i}'+m_{1_{i+1}}'}\right)
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} \leq {\Delta{}t}_{i} \\
+            \begin{pmatrix}
+                0 \\
+                m_{p_{i+1}} - {m'}_{i+1}{\Delta{}t}_{i} \\
+                T_{max_{i}} + T_{max_{i+1}} \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{0_i}'+m_{0_{i+1}}'}\right) \\
+                \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{1_i}'+m_{1_{i+1}}'}\right)
+            \end{pmatrix} &
+            {\Delta{}t}_{i+1} > {\Delta{}t}_{i}
+        \end{cases}
+\end{equation}
+
+\subsubsection{Simultanious, shared, dropable}
+Given stages $S_{i}$ and $S_{i+1}$, $\langle S_{i}', S_{i+1}' \rangle = S_{i} < S_{i+1}$.
+The `$<$' operator in this case is not transitive.
+It is assumed that $S_{i+1}$ will drop as soon as it is depleted.
+\begin{equation}
+    S_{i}' =
+        \begin{pmatrix}
+            m_{e_{i}} \\
+            m_{p_{i}} \\
+            T_{max_{i}} \\
+            {{I_{sp}}_{0}}_i \\
+            {{I_{sp}}_{1}}_i
+        \end{pmatrix}
+\end{equation}
+\begin{equation}
+    S_{i+1}' =
+        \begin{pmatrix}
+            m_{e_{i+1}} \\
+            m_{p_{i+1}} \\
+            T_{max_{i}} + T_{max_{i+1}} \\
+            \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{0_i}'+m_{0_{i+1}}'}\right) \\
+            \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{1_i}'+m_{1_{i+1}}'}\right)
+        \end{pmatrix}
+\end{equation}
+
+\subsubsection{Simultanious, shared, non-dropable}
+Given stages $S_{i}$ and $S_{i+1}$, $\langle S_{i}', S_{i+1}' \rangle = S_{i} \ll S_{i+1}$.
+The `$\ll$' operator in this case is not transitive.
+\begin{equation}
+    S_{i}' =
+        \begin{pmatrix}
+            m_{e_{i}} + m_{e_{i+1}} \\
+            m_{p_{i}} \\
+            T_{max_{i}} \\
+            {{I_{sp}}_{0}}_i \\
+            {{I_{sp}}_{1}}_i
+        \end{pmatrix}
+\end{equation}
+\begin{equation}
+    S_{i+1}' =
+        \begin{pmatrix}
+            0 \\
+            m_{p_{i+1}} \\
+            T_{max_{i}} + T_{max_{i+1}} \\
+            \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{0_i}'+m_{0_{i+1}}'}\right) \\
+            \left(\frac{T_{max_{i}} + T_{max_{i+1}}}{m_{1_i}'+m_{1_{i+1}}'}\right)
+        \end{pmatrix}
+\end{equation}
+
+\subsubsection{Stacking}
+Given stages $S_{i}$ and $S_{i+1}$, $\langle S_{i}', S_{i+1}' \rangle = S_{i} + S_{i+1}$.
+The `$+$' operator in this case is not transitive.
+It is assumed that $S_{i+1}$ will drop as soon as it is depleted.
+\begin{equation}
+    \begin{array}{c c}
+        S_{i}' = S_{i} &
+        S_{i+1}' = S_{i+1}
+    \end{array}
+\end{equation}
 
 \subsection{Partial Stages}
 Partial stages represent stages that have variable mass of propellent and can be combined with one another during design

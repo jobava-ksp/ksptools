@@ -50,6 +50,10 @@ class KeplerOrbit(PersistantObject):
         self.frame = perifocal_frame(inc, lonasc, argpe)
         self.normal = self.frame.unitk(0)
         self.epoch = epoch
+        self.inclination = inc
+        self.argument_periapsis = argpe
+        self.longitude_ascending = lonasc
+        self.longitude_periapsis = argpe + lonasc
         if ecc < 1:
             self.period = 2*pi*sqrt(sma**3/u)
         else:
